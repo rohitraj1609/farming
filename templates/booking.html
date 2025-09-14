@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Your Journey</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7fc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            text-align: center;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        select, input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .fare {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        #qrcode {
+            margin-top: 20px;
+        }
+        .success-message {
+            margin-top: 15px;
+            color: #28a745;
+            font-weight: bold;
+            display: none; /* Initially hidden */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Book Your Journey</h2>
+        <form id="booking-form">
+            <select id="bus_number" required>
+                <option value="">Select Bus Number</option>
+                <option value="Bus-101">Bus-101</option>
+                <option value="Bus-102">Bus-102</option>
+                <option value="Bus-103">Bus-103</option>
+                <option value="Bus-104">Bus-104</option>
+                <option value="Bus-105">Bus-105</option>
+            </select>
+            <select id="source" required>
+                <option value="">Select Source</option>
+                <option value="Majestic">Majestic</option>
+                <option value="Kengeri">Kengeri</option>
+                <option value="Jayanagar">Jayanagar</option>
+                <option value="Banashankari">Banashankari</option>
+                <option value="Koramangala">Koramangala</option>
+            </select>
+            <select id="destination" required>
+                <option value="">Select Destination</option>
+                <option value="Majestic">Majestic</option>
+                <option value="Kengeri">Kengeri</option>
+                <option value="Jayanagar">Jayanagar</option>
+                <option value="Banashankari">Banashankari</option>
+                <option value="Koramangala">Koramangala</option>
+            </select>
+            <input type="date" id="journey_date" required>
+            <div class="fare" id="fare-display">Fare: ₹0</div>
+            <button type="button" id="pay-button">Book & Pay</button>
+        </form>
+        <div class="success-message" id="success-message">Booking Successful! QR Code generated.</div>
+        <canvas id="qrcode"></canvas>
+    </div>
+
+    <script>
+        const today = new Date().toLocaleDateString('en-CA');
+        document.getElementById('journey_date').value = today;
+
+        const fares = {
+            "Majestic": { "Majestic": 0, "Kengeri": 15, "Jayanagar": 10, "Banashankari": 12, "Koramangala": 18 },
+            "Kengeri": { "Majestic": 15, "Kengeri": 0, "Jayanagar": 12, "Banashankari": 14, "Koramangala": 20 },
+            "Jayanagar": { "Majestic": 10, "Kengeri": 12, "Jayanagar": 0, "Banashankari": 5, "Koramangala": 10 },
+            "Banashankari": { "Majestic": 12, "Kengeri": 14, "Jayanagar": 5, "Banashankari": 0, "Koramangala": 8 },
+            "Koramangala": { "Majestic": 18, "Kengeri": 20, "Jayanagar": 10, "Banashankari": 8, "Koramangala": 0 }
+        };
+
+        document.querySelectorAll('#source, #destination').forEach(element => {
+            element.addEventListener('change', function() {
+                const source = document.getElementById('source').value;
+                const destination = document.getElementById('destination').value;
+                const fareDisplay = document.getElementById('fare-display');
+                if (source && destination && fares[source] && fares[source][destination] !== undefined) {
+                    fareDisplay.innerHTML = `Fare: ₹${fares[source][destination]}`;
+                } else {
+                    fareDisplay.innerHTML = 'Fare: ₹0';
+                }
+            });
+        });
+
+        function formatDateToDDMMYYYY(dateString) {
+            const [year, month, day] = dateString.split("-");
+            return `${day}-${month}-${year}`;
+        }
+
+        document.getElementById('pay-button').addEventListener('click', function() {
+            const busNumber = document.getElementById('bus_number').value;
+            const source = document.getElementById('source').value;
+            const destination = document.getElementById('destination').value;
+            const journeyDate = document.getElementById('journey_date').value;
+            const fare = fares[source] && fares[source][destination] !== undefined ? fares[source][destination] : 0;
+
+            if (!busNumber || !source || !destination || !journeyDate) {
+                alert("Please fill all fields before proceeding.");
+                return;
+            }
+
+            const bookingDate = new Date();
+            const bookingDateStr = bookingDate.toLocaleDateString('en-GB'); // DD/MM/YYYY
+            const bookingTimeStr = bookingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const options = {
+                key: "Replace with key",
+                amount: fare * 100,
+                currency: "INR",
+                name: "Smart Ticketing",
+                description: "Journey Booking Fare",
+                handler: function(response) {
+                    alert("Payment Successful. Payment ID: " + response.razorpay_payment_id);
+
+                    const qrContent = `Bus Number: ${busNumber}\nSource: ${source}\nDestination: ${destination}\nJourney Date: ${formatDateToDDMMYYYY(journeyDate)}\nFare: ₹${fare}\nBooking Date: ${bookingDateStr}\nBooking Time: ${bookingTimeStr}\nValid Until: ${formatDateToDDMMYYYY(journeyDate)} 11:59 PM`;
+                    const qrCodeContainer = document.getElementById('qrcode');
+                    const successMessage = document.getElementById('success-message');
+
+                    qrCodeContainer.getContext('2d').clearRect(0, 0, qrCodeContainer.width, qrCodeContainer.height);
+                    successMessage.style.display = 'none';
+
+                    QRCode.toCanvas(qrCodeContainer, qrContent, function(error) {
+                        if (error) {
+                            console.error(error);
+                        } else {
+                            console.log("QR Code generated!");
+                            successMessage.style.display = 'block';
+                        }
+                    });
+                },
+                prefill: {
+                    name: "Passenger",
+                    email: "example@example.com"
+                },
+                theme: {
+                    color: "#28a745"
+                }
+            };
+
+            const rzp = new Razorpay(options);
+            rzp.open();
+        });
+    </script>
+</body>
+</html>
