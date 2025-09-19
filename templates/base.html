@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Farming App{% endblock %}</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/script.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav>
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h1>🌱 Farming App</h1>
+                <p>Agricultural Management Platform</p>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/login-page" class="nav-link" id="login-nav-link">Login</a>
+                <a href="/signup-page" class="nav-link" id="signup-nav-link">Sign Up</a>
+                <a href="/about" class="nav-link">About Us</a>
+                <a href="/logout" class="nav-link logout-btn" id="logout-nav-link" style="display: none;">Logout</a>
+                
+                <!-- Profile Dropdown (shown when logged in) -->
+                <div class="profile-dropdown" id="profile-dropdown" style="display: none;">
+                    <div class="profile-trigger" onclick="toggleProfileDropdown()">
+                        <div class="profile-avatar">
+                            <span id="profile-initial">U</span>
+                        </div>
+                    </div>
+                    <div class="profile-menu" id="profile-menu">
+                        <div class="profile-info">
+                            <div class="profile-avatar-large">
+                                <span id="profile-initial-large">U</span>
+                            </div>
+                            <div class="profile-details">
+                                <div class="profile-username" id="username-display-large">User</div>
+                                <div class="profile-email" id="user-email">user@example.com</div>
+                            </div>
+                        </div>
+                        <div class="profile-divider"></div>
+                        <div class="profile-actions">
+                            <a href="#" class="profile-action" onclick="showProfileSettings()">
+                                <span class="action-icon">👤</span>
+                                <span>Profile Settings</span>
+                            </a>
+                            <a href="#" class="profile-action" onclick="showAccountSettings()">
+                                <span class="action-icon">⚙️</span>
+                                <span>Account Settings</span>
+                            </a>
+                            <a href="#" class="profile-action" onclick="showMyListings()">
+                                <span class="action-icon">📊</span>
+                                <span>My Listings</span>
+                            </a>
+                            <div class="profile-divider"></div>
+                            <a href="#" class="profile-action logout-action" onclick="confirmLogout()">
+                                <span class="action-icon">🚪</span>
+                                <span>Logout</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div id="flash-messages"></div>
+
+    <!-- Page Content -->
+    {% block content %}{% endblock %}
+
+    <!-- Modals -->
+    {% block modals %}{% endblock %}
+    
+    <!-- Profile Modals -->
+    <!-- Profile Settings Modal -->
+    <div id="profileModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>👤 Profile Settings</h2>
+                <span class="close" onclick="closeProfileModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="profileForm">
+                    <div class="form-group">
+                        <label for="profile-name">Full Name</label>
+                        <input type="text" id="profile-name" placeholder="Enter your full name">
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-email">Email Address</label>
+                        <input type="email" id="profile-email" placeholder="Enter your email">
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-phone">Phone Number</label>
+                        <input type="tel" id="profile-phone" placeholder="Enter your phone number">
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-location">Farm Location</label>
+                        <input type="text" id="profile-location" placeholder="Enter your farm location">
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-bio">Bio</label>
+                        <textarea id="profile-bio" placeholder="Tell us about your farming experience..." rows="3"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeProfileModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Settings Modal -->
+    <div id="accountModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Account Settings</h2>
+                <span class="close" onclick="closeAccountModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="accountForm">
+                    <div class="form-group">
+                        <label for="current-password">Current Password</label>
+                        <input type="password" id="current-password" placeholder="Enter current password">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-password">New Password</label>
+                        <input type="password" id="new-password" placeholder="Enter new password">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm-new-password">Confirm New Password</label>
+                        <input type="password" id="confirm-new-password" placeholder="Confirm new password">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeAccountModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Update Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Listings Modal -->
+    <div id="listingsModal" class="modal" style="display: none;">
+        <div class="modal-content large-modal">
+            <div class="modal-header">
+                <h2>📊 My Listings</h2>
+                <span class="close" onclick="closeListingsModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="listings-stats">
+                    <div class="stat-item">
+                        <span class="stat-number" id="total-listings">0</span>
+                        <span class="stat-label">Total Listings</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="active-listings">0</span>
+                        <span class="stat-label">Active</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="total-value">₹0</span>
+                        <span class="stat-label">Total Value</span>
+                    </div>
+                </div>
+                <div class="listings-grid" id="modal-listings-grid">
+                    <!-- Listings will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

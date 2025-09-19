@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Complete Profile - Farming App{% endblock %}
+
+{% block content %}
+<div class="profile-setup-page">
+    <div class="form-container">
+        <h2 class="form-title">🌱 Complete Your Profile</h2>
+        <p class="form-subtitle">Tell us about yourself to get started with CropMarket</p>
+        
+        <form action="/complete-profile" method="POST" id="profileSetupForm">
+            <div class="form-group">
+                <label class="form-label" for="name">Full Name</label>
+                <input type="text" name="name" id="name" placeholder="Enter your full name" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="location">Farm Location</label>
+                <input type="text" name="location" id="location" placeholder="Enter your farm location (e.g., Punjab, India)" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="bio">Bio (Optional)</label>
+                <textarea name="bio" id="bio" placeholder="Tell us about your farming experience..." rows="3"></textarea>
+            </div>
+            
+            <button type="submit" class="btn-primary">Complete Profile</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

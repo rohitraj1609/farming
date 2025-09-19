@@ -1,188 +1,243 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Book Your Journey</title>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f7fc;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            width: 400px;
-            text-align: center;
-        }
-        h2 {
-            color: #333;
-            margin-bottom: 20px;
-        }
-        select, input[type="date"] {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: #28a745;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #218838;
-        }
-        .fare {
-            margin-top: 15px;
-            font-weight: bold;
-        }
-        #qrcode {
-            margin-top: 20px;
-        }
-        .success-message {
-            margin-top: 15px;
-            color: #28a745;
-            font-weight: bold;
-            display: none; /* Initially hidden */
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Book Your Journey</h2>
-        <form id="booking-form">
-            <select id="bus_number" required>
-                <option value="">Select Bus Number</option>
-                <option value="Bus-101">Bus-101</option>
-                <option value="Bus-102">Bus-102</option>
-                <option value="Bus-103">Bus-103</option>
-                <option value="Bus-104">Bus-104</option>
-                <option value="Bus-105">Bus-105</option>
-            </select>
-            <select id="source" required>
-                <option value="">Select Source</option>
-                <option value="Majestic">Majestic</option>
-                <option value="Kengeri">Kengeri</option>
-                <option value="Jayanagar">Jayanagar</option>
-                <option value="Banashankari">Banashankari</option>
-                <option value="Koramangala">Koramangala</option>
-            </select>
-            <select id="destination" required>
-                <option value="">Select Destination</option>
-                <option value="Majestic">Majestic</option>
-                <option value="Kengeri">Kengeri</option>
-                <option value="Jayanagar">Jayanagar</option>
-                <option value="Banashankari">Banashankari</option>
-                <option value="Koramangala">Koramangala</option>
-            </select>
-            <input type="date" id="journey_date" required>
-            <div class="fare" id="fare-display">Fare: ₹0</div>
-            <button type="button" id="pay-button">Book & Pay</button>
-        </form>
-        <div class="success-message" id="success-message">Booking Successful! QR Code generated.</div>
-        <canvas id="qrcode"></canvas>
+{% extends "base.html" %}
+
+{% block title %}CropMarket - Farming App{% endblock %}
+
+{% block head_extra %}
+<script>
+// Pass user data to the base template
+console.log('Setting user data in sessionStorage...');
+console.log('User email:', '{{ user_email or "user@example.com" }}');
+console.log('User name:', '{{ user_name or "User" }}');
+
+// Store user data in sessionStorage for the base template
+sessionStorage.setItem('userEmail', '{{ user_email or "user@example.com" }}');
+sessionStorage.setItem('userPhone', '{{ user_phone or "" }}');
+sessionStorage.setItem('userName', '{{ user_name or "User" }}');
+sessionStorage.setItem('userLocation', '{{ user_location or "" }}');
+sessionStorage.setItem('userBio', '{{ user_bio or "" }}');
+
+console.log('User data stored:', {
+    email: sessionStorage.getItem('userEmail'),
+    name: sessionStorage.getItem('userName'),
+    phone: sessionStorage.getItem('userPhone')
+});
+
+// Force navigation update after setting user data
+setTimeout(() => {
+    console.log('Forcing navigation update after user data is set...');
+    if (typeof updateNavigation === 'function') {
+        console.log('Calling updateNavigation...');
+        updateNavigation();
+    } else {
+        console.log('updateNavigation function not available yet, trying again...');
+        setTimeout(() => {
+            if (typeof updateNavigation === 'function') {
+                updateNavigation();
+            }
+        }, 200);
+    }
+}, 50);
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="booking-page">
+    <!-- Search Bar -->
+    <div class="search-container">
+        <div class="search-wrapper">
+            <input type="text" placeholder="Search crops..." class="search-input">
+        </div>
     </div>
 
-    <script>
-        const today = new Date().toLocaleDateString('en-CA');
-        document.getElementById('journey_date').value = today;
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+        <button class="tab-btn active" onclick="switchTab('sell')" id="sell-tab">🌾 Sell Crops</button>
+        <button class="tab-btn" onclick="switchTab('buy')" id="buy-tab">🛒 Buy Crops</button>
+    </div>
 
-        const fares = {
-            "Majestic": { "Majestic": 0, "Kengeri": 15, "Jayanagar": 10, "Banashankari": 12, "Koramangala": 18 },
-            "Kengeri": { "Majestic": 15, "Kengeri": 0, "Jayanagar": 12, "Banashankari": 14, "Koramangala": 20 },
-            "Jayanagar": { "Majestic": 10, "Kengeri": 12, "Jayanagar": 0, "Banashankari": 5, "Koramangala": 10 },
-            "Banashankari": { "Majestic": 12, "Kengeri": 14, "Jayanagar": 5, "Banashankari": 0, "Koramangala": 8 },
-            "Koramangala": { "Majestic": 18, "Kengeri": 20, "Jayanagar": 10, "Banashankari": 8, "Koramangala": 0 }
-        };
+    <!-- Instagram-style Feed -->
+    <div class="insta-feed">
+        <!-- Stories Section -->
+        <div class="stories-section">
+            <div class="story-item add-story">
+                <div class="story-avatar">
+                    <span>+</span>
+                </div>
+                <span class="story-name">Your Story</span>
+            </div>
+            <div class="story-item">
+                <div class="story-avatar">
+                    <span>🌾</span>
+                </div>
+                <span class="story-name">Wheat</span>
+            </div>
+            <div class="story-item">
+                <div class="story-avatar">
+                    <span>🌽</span>
+                </div>
+                <span class="story-name">Corn</span>
+            </div>
+            <div class="story-item">
+                <div class="story-avatar">
+                    <span>🍅</span>
+                </div>
+                <span class="story-name">Tomatoes</span>
+            </div>
+            <div class="story-item">
+                <div class="story-avatar">
+                    <span>🥕</span>
+                </div>
+                <span class="story-name">Carrots</span>
+            </div>
+        </div>
 
-        document.querySelectorAll('#source, #destination').forEach(element => {
-            element.addEventListener('change', function() {
-                const source = document.getElementById('source').value;
-                const destination = document.getElementById('destination').value;
-                const fareDisplay = document.getElementById('fare-display');
-                if (source && destination && fares[source] && fares[source][destination] !== undefined) {
-                    fareDisplay.innerHTML = `Fare: ₹${fares[source][destination]}`;
-                } else {
-                    fareDisplay.innerHTML = 'Fare: ₹0';
-                }
-            });
-        });
+        <!-- Sell Tab Content -->
+        <div class="tab-content" id="sell-content">
+            <!-- Sell Form Card -->
+            <div class="service-card sell-card">
+                <div class="card-header">
+                    <div class="user-info">
+                        <div class="user-avatar">🌾</div>
+                        <div class="user-details">
+                            <span class="username">List Your Crop</span>
+                            <span class="location">Sell Your Harvest</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sell-form-content">
+                    <form id="sell-form" class="sell-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="crop_type">Crop Type</label>
+                                <select id="crop_type" required>
+                                    <option value="">Select Crop</option>
+                                    <option value="wheat">Wheat</option>
+                                    <option value="rice">Rice</option>
+                                    <option value="corn">Corn</option>
+                                    <option value="tomatoes">Tomatoes</option>
+                                    <option value="potatoes">Potatoes</option>
+                                    <option value="carrots">Carrots</option>
+                                    <option value="onions">Onions</option>
+                                    <option value="spinach">Spinach</option>
+                                    <option value="cabbage">Cabbage</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="quantity">Quantity (kg)</label>
+                                <input type="number" id="quantity" placeholder="Enter quantity" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="price_per_kg">Price per kg (₹)</label>
+                                <input type="number" id="price_per_kg" placeholder="Enter price per kg" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="harvest_date">Harvest Date</label>
+                                <input type="date" id="harvest_date" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="location">Farm Location</label>
+                            <input type="text" id="location" placeholder="Enter your farm location" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="description">Crop Description</label>
+                            <textarea id="description" placeholder="Describe your crop quality, organic status, etc..." rows="3"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="contact">Contact Number</label>
+                            <input type="tel" id="contact" placeholder="Your contact number" required>
+                        </div>
+                        
+                        <div class="total-price" id="total-price">Total Value: ₹0</div>
+                        
+                        <button type="button" id="list-crop-button" class="list-button">List My Crop</button>
+                    </form>
+                </div>
+            </div>
 
-        function formatDateToDDMMYYYY(dateString) {
-            const [year, month, day] = dateString.split("-");
-            return `${day}-${month}-${year}`;
-        }
+            <!-- Success Message Card -->
+            <div class="service-card success-card" id="sell-success-card" style="display: none;">
+                <div class="card-header">
+                    <div class="user-info">
+                        <div class="user-avatar">✅</div>
+                        <div class="user-details">
+                            <span class="username">Crop Listed Successfully</span>
+                            <span class="location">Your crop is now live!</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="success-content">
+                    <div class="success-icon">🎉</div>
+                    <h3>Crop Listed Successfully!</h3>
+                    <p>Your crop listing is now live and visible to buyers. You'll be notified when someone is interested.</p>
+                </div>
+            </div>
 
-        document.getElementById('pay-button').addEventListener('click', function() {
-            const busNumber = document.getElementById('bus_number').value;
-            const source = document.getElementById('source').value;
-            const destination = document.getElementById('destination').value;
-            const journeyDate = document.getElementById('journey_date').value;
-            const fare = fares[source] && fares[source][destination] !== undefined ? fares[source][destination] : 0;
+            <!-- My Listings Section -->
+            <div class="service-card my-listings-card">
+                <div class="card-header">
+                    <div class="user-info">
+                        <div class="user-avatar">📋</div>
+                        <div class="user-details">
+                            <span class="username">My Crop Listings</span>
+                            <span class="location">Your active listings</span>
+                        </div>
+                    </div>
+                    <button class="refresh-btn" onclick="refreshMyListings()">🔄 Refresh</button>
+                </div>
+                
+                <div class="my-listings-content">
+                    <div class="my-listings-grid" id="my-listings-grid">
+                        <!-- User's own crops will be displayed here -->
+                    </div>
+                    <div class="no-listings" id="no-listings" style="display: none;">
+                        <div class="no-listings-icon">🌱</div>
+                        <h3>No Listings Yet</h3>
+                        <p>You haven't listed any crops yet. Use the form above to list your first crop!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            if (!busNumber || !source || !destination || !journeyDate) {
-                alert("Please fill all fields before proceeding.");
-                return;
-            }
+        <!-- Buy Tab Content -->
+        <div class="tab-content" id="buy-content" style="display: none;">
+            <!-- Available Crops List -->
+            <div class="crops-grid" id="crops-grid">
+                <!-- Crop cards will be dynamically generated here -->
+            </div>
+        </div>
+    </div>
+</div>
 
-            const bookingDate = new Date();
-            const bookingDateStr = bookingDate.toLocaleDateString('en-GB'); // DD/MM/YYYY
-            const bookingTimeStr = bookingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+<script>
+// Initialize user data from backend
+document.addEventListener('DOMContentLoaded', function() {
+    // Store user data in sessionStorage
+    sessionStorage.setItem('userEmail', '{{ user_email or "user@example.com" }}');
+    sessionStorage.setItem('userPhone', '{{ user_phone or "" }}');
+    sessionStorage.setItem('userName', '{{ user_name or "User" }}');
+    sessionStorage.setItem('userLocation', '{{ user_location or "" }}');
+    sessionStorage.setItem('userBio', '{{ user_bio or "" }}');
+    
+    // Initialize profile display
+    if (typeof updateProfileInitials === 'function') {
+        updateProfileInitials('{{ user_name or "User" }}');
+    }
+});
+</script>
+{% endblock %}
 
-            const options = {
-                key: "Replace with key",
-                amount: fare * 100,
-                currency: "INR",
-                name: "Smart Ticketing",
-                description: "Journey Booking Fare",
-                handler: function(response) {
-                    alert("Payment Successful. Payment ID: " + response.razorpay_payment_id);
-
-                    const qrContent = `Bus Number: ${busNumber}\nSource: ${source}\nDestination: ${destination}\nJourney Date: ${formatDateToDDMMYYYY(journeyDate)}\nFare: ₹${fare}\nBooking Date: ${bookingDateStr}\nBooking Time: ${bookingTimeStr}\nValid Until: ${formatDateToDDMMYYYY(journeyDate)} 11:59 PM`;
-                    const qrCodeContainer = document.getElementById('qrcode');
-                    const successMessage = document.getElementById('success-message');
-
-                    qrCodeContainer.getContext('2d').clearRect(0, 0, qrCodeContainer.width, qrCodeContainer.height);
-                    successMessage.style.display = 'none';
-
-                    QRCode.toCanvas(qrCodeContainer, qrContent, function(error) {
-                        if (error) {
-                            console.error(error);
-                        } else {
-                            console.log("QR Code generated!");
-                            successMessage.style.display = 'block';
-                        }
-                    });
-                },
-                prefill: {
-                    name: "Passenger",
-                    email: "example@example.com"
-                },
-                theme: {
-                    color: "#28a745"
-                }
-            };
-
-            const rzp = new Razorpay(options);
-            rzp.open();
-        });
-    </script>
-</body>
-</html>
+{% block modals %}
+<!-- Modals are defined in base.html to avoid duplicate IDs -->
+{% endblock %}
