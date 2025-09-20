@@ -31,6 +31,13 @@ A comprehensive agricultural management platform built with Flask and modern web
    python main.py
    ```
 
+## Security Notes
+
+- **Never commit `.env` files** - They contain sensitive information
+- **Use `.env.example`** as a template for required environment variables
+- **Generate a strong SECRET_KEY** for production use
+- **Keep your MongoDB credentials secure**
+
 ## Project Structure
 
 ```
