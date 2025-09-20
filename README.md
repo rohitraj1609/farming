@@ -2,6 +2,35 @@
 
 A comprehensive agricultural management platform built with Flask and modern web technologies.
 
+## Environment Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd booking_app
+   ```
+
+2. **Create environment file**
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Configure environment variables**
+   Edit `.env` file with your actual values:
+   - `MONGO_URI`: Your MongoDB connection string
+   - `SECRET_KEY`: Generate a secure secret key
+   - `DB_NAME`: Your database name
+
+4. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+5. **Run the application**
+   ```bash
+   python main.py
+   ```
+
 ## Project Structure
 
 ```
