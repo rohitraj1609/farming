@@ -37,6 +37,7 @@ setTimeout(() => {
         }, 200);
     }
 }, 50);
+
 </script>
 {% endblock %}
 
@@ -49,11 +50,24 @@ setTimeout(() => {
         </div>
     </div>
 
-    <!-- Tab Navigation -->
-    <div class="tab-navigation">
-        <button class="tab-btn active" onclick="switchTab('sell')" id="sell-tab">🌾 Sell Crops</button>
-        <button class="tab-btn" onclick="switchTab('buy')" id="buy-tab">🛒 Buy Crops</button>
+    <!-- Action Buttons Section -->
+    <div class="action-buttons-section">
+        <div class="action-buttons-container">
+            <a href="/market" class="action-btn market-btn">
+                <span class="btn-icon">📊</span>
+                <span class="btn-text">Market Updates</span>
+            </a>
+            <a href="/sell" class="action-btn sell-btn">
+                <span class="btn-icon">🌾</span>
+                <span class="btn-text">Sell Crops</span>
+            </a>
+            <a href="/buy" class="action-btn buy-btn">
+                <span class="btn-icon">🛒</span>
+                <span class="btn-text">Buy Crops</span>
+            </a>
+        </div>
     </div>
+
 
     <!-- Instagram-style Feed -->
     <div class="insta-feed">
@@ -91,130 +105,29 @@ setTimeout(() => {
             </div>
         </div>
 
-        <!-- Sell Tab Content -->
-        <div class="tab-content" id="sell-content">
-            <!-- Sell Form Card -->
-            <div class="service-card sell-card">
-                <div class="card-header">
-                    <div class="user-info">
-                        <div class="user-avatar">🌾</div>
-                        <div class="user-details">
-                            <span class="username">List Your Crop</span>
-                            <span class="location">Sell Your Harvest</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="sell-form-content">
-                    <form id="sell-form" class="sell-form">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label" for="crop_type">Crop Type</label>
-                                <select id="crop_type" required>
-                                    <option value="">Select Crop</option>
-                                    <option value="wheat">Wheat</option>
-                                    <option value="rice">Rice</option>
-                                    <option value="corn">Corn</option>
-                                    <option value="tomatoes">Tomatoes</option>
-                                    <option value="potatoes">Potatoes</option>
-                                    <option value="carrots">Carrots</option>
-                                    <option value="onions">Onions</option>
-                                    <option value="spinach">Spinach</option>
-                                    <option value="cabbage">Cabbage</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label" for="quantity">Quantity (kg)</label>
-                                <input type="number" id="quantity" placeholder="Enter quantity" required>
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label" for="price_per_kg">Price per kg (₹)</label>
-                                <input type="number" id="price_per_kg" placeholder="Enter price per kg" required>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label" for="harvest_date">Harvest Date</label>
-                                <input type="date" id="harvest_date" required>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label" for="location">Farm Location</label>
-                            <input type="text" id="location" placeholder="Enter your farm location" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label" for="description">Crop Description</label>
-                            <textarea id="description" placeholder="Describe your crop quality, organic status, etc..." rows="3"></textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label" for="contact">Contact Number</label>
-                            <input type="tel" id="contact" placeholder="Your contact number" required>
-                        </div>
-                        
-                        <div class="total-price" id="total-price">Total Value: ₹0</div>
-                        
-                        <button type="button" id="list-crop-button" class="list-button">List My Crop</button>
-                    </form>
-                </div>
-            </div>
 
-            <!-- Success Message Card -->
-            <div class="service-card success-card" id="sell-success-card" style="display: none;">
-                <div class="card-header">
-                    <div class="user-info">
-                        <div class="user-avatar">✅</div>
-                        <div class="user-details">
-                            <span class="username">Crop Listed Successfully</span>
-                            <span class="location">Your crop is now live!</span>
-                        </div>
+        <!-- Welcome Section -->
+        <div class="welcome-section">
+            <div class="welcome-card">
+                <h2>🌱 Welcome to Your Farming Dashboard</h2>
+                <p>Choose an action below to get started with your agricultural activities:</p>
+                <div class="welcome-features">
+                    <div class="feature-item">
+                        <span class="feature-icon">📊</span>
+                        <h3>Market Updates</h3>
+                        <p>Stay informed with latest agricultural market trends and prices</p>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🌾</span>
+                        <h3>Sell Crops</h3>
+                        <p>List your harvest and connect with potential buyers</p>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🛒</span>
+                        <h3>Buy Crops</h3>
+                        <p>Find and purchase fresh crops from local farmers</p>
                     </div>
                 </div>
-                
-                <div class="success-content">
-                    <div class="success-icon">🎉</div>
-                    <h3>Crop Listed Successfully!</h3>
-                    <p>Your crop listing is now live and visible to buyers. You'll be notified when someone is interested.</p>
-                </div>
-            </div>
-
-            <!-- My Listings Section -->
-            <div class="service-card my-listings-card">
-                <div class="card-header">
-                    <div class="user-info">
-                        <div class="user-avatar">📋</div>
-                        <div class="user-details">
-                            <span class="username">My Crop Listings</span>
-                            <span class="location">Your active listings</span>
-                        </div>
-                    </div>
-                    <button class="refresh-btn" onclick="refreshMyListings()">🔄 Refresh</button>
-                </div>
-                
-                <div class="my-listings-content">
-                    <div class="my-listings-grid" id="my-listings-grid">
-                        <!-- User's own crops will be displayed here -->
-                    </div>
-                    <div class="no-listings" id="no-listings" style="display: none;">
-                        <div class="no-listings-icon">🌱</div>
-                        <h3>No Listings Yet</h3>
-                        <p>You haven't listed any crops yet. Use the form above to list your first crop!</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Buy Tab Content -->
-        <div class="tab-content" id="buy-content" style="display: none;">
-            <!-- Available Crops List -->
-            <div class="crops-grid" id="crops-grid">
-                <!-- Crop cards will be dynamically generated here -->
             </div>
         </div>
     </div>

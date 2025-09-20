@@ -792,8 +792,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Add loading states to forms
+    // Add loading states to forms (only for forms without custom handlers)
     document.querySelectorAll('form').forEach(form => {
+        // Skip forms that have custom handlers (like crop-form)
+        if (form.id === 'crop-form') {
+            return;
+        }
+        
         form.addEventListener('submit', function() {
             const submitBtn = this.querySelector('button[type="submit"]');
             if (submitBtn) {

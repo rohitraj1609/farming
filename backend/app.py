@@ -41,10 +41,137 @@ try:
     db_name = os.getenv('DB_NAME', 'farming')
     db = client[db_name]
     users_collection = db.users
+    market_updates_collection = db.market_updates
+    crops_collection = db.crops
     log_success(f"Connected to MongoDB database: {db_name}")
 except Exception as e:
     log_error(f"Failed to connect to MongoDB: {e}")
     raise
+
+# Market Updates Database Functions
+def get_market_updates():
+    """Get all market updates from database"""
+    try:
+        updates = list(market_updates_collection.find().sort("created_at", -1))
+        for update in updates:
+            update['_id'] = str(update['_id'])
+        return updates
+    except Exception as e:
+        logger.error(f"Error getting market updates: {e}")
+        return []
+
+def add_market_update(update_data):
+    """Add a new market update to database"""
+    try:
+        update_data['created_at'] = datetime.utcnow()
+        result = market_updates_collection.insert_one(update_data)
+        return str(result.inserted_id)
+    except Exception as e:
+        logger.error(f"Error adding market update: {e}")
+        return None
+
+def update_market_update(update_id, update_data):
+    """Update an existing market update"""
+    try:
+        from bson import ObjectId
+        result = market_updates_collection.update_one(
+            {"_id": ObjectId(update_id)},
+            {"$set": update_data}
+        )
+        return result.modified_count > 0
+    except Exception as e:
+        logger.error(f"Error updating market update: {e}")
+        return False
+
+def delete_market_update(update_id):
+    """Delete a market update"""
+    try:
+        from bson import ObjectId
+        result = market_updates_collection.delete_one({"_id": ObjectId(update_id)})
+        return result.deleted_count > 0
+    except Exception as e:
+        logger.error(f"Error deleting market update: {e}")
+        return False
+
+# Crops Database Functions
+def get_crops(filters=None):
+    """Get all crops from database with optional filters"""
+    try:
+        query = {}
+        if filters:
+            if filters.get('category'):
+                query['category'] = filters['category']
+            if filters.get('location'):
+                query['location'] = {'$regex': filters['location'], '$options': 'i'}
+            if filters.get('price_min') or filters.get('price_max'):
+                price_query = {}
+                if filters.get('price_min'):
+                    price_query['$gte'] = filters['price_min']
+                if filters.get('price_max'):
+                    price_query['$lte'] = filters['price_max']
+                query['price_per_kg'] = price_query
+        
+        crops = list(crops_collection.find(query).sort("created_at", -1))
+        for crop in crops:
+            crop['_id'] = str(crop['_id'])
+            # Ensure all required fields exist with defaults
+            crop.setdefault('total_price', crop.get('quantity', 0) * crop.get('price_per_kg', 0))
+            crop.setdefault('seller_name', 'Unknown')
+            crop.setdefault('seller_phone', '')
+            crop.setdefault('description', '')
+        return crops
+    except Exception as e:
+        logger.error(f"Error getting crops: {e}")
+        return []
+
+def add_crop(crop_data):
+    """Add a new crop listing to database"""
+    try:
+        crop_data['created_at'] = datetime.utcnow()
+        result = crops_collection.insert_one(crop_data)
+        return str(result.inserted_id)
+    except Exception as e:
+        logger.error(f"Error adding crop: {e}")
+        return None
+
+def update_crop(crop_id, crop_data):
+    """Update an existing crop listing"""
+    try:
+        from bson import ObjectId
+        result = crops_collection.update_one(
+            {"_id": ObjectId(crop_id)},
+            {"$set": crop_data}
+        )
+        return result.modified_count > 0
+    except Exception as e:
+        logger.error(f"Error updating crop: {e}")
+        return False
+
+def delete_crop(crop_id):
+    """Delete a crop listing"""
+    try:
+        from bson import ObjectId
+        result = crops_collection.delete_one({"_id": ObjectId(crop_id)})
+        return result.deleted_count > 0
+    except Exception as e:
+        logger.error(f"Error deleting crop: {e}")
+        return False
+
+def get_user_crops(user_email):
+    """Get crops listed by a specific user"""
+    try:
+        crops = list(crops_collection.find({"seller_email": user_email}).sort("created_at", -1))
+        for crop in crops:
+            crop['_id'] = str(crop['_id'])
+            # Ensure all required fields exist with defaults
+            crop.setdefault('total_price', crop.get('quantity', 0) * crop.get('price_per_kg', 0))
+            crop.setdefault('seller_name', 'Unknown')
+            crop.setdefault('seller_phone', '')
+            crop.setdefault('description', '')
+        return crops
+    except Exception as e:
+        logger.error(f"Error getting user crops: {e}")
+        return []
 
 def validate_email(email):
     """Validate email format"""
@@ -270,6 +397,120 @@ def booking_page():
         logger.error(f"Error serving booking page: {e}")
         return "Error loading booking page.", 500
 
+@app.route('/sell')
+def sell_page():
+    """Sell crops page"""
+    try:
+        # Check if user is logged in
+        if 'user_id' not in session:
+            logger.warning("Unauthorized access to sell page - redirecting to login")
+            flash('Please login to access the sell page', 'error')
+            return redirect('/login-page')
+        
+        # Get user data from session
+        user_email = session.get('email', 'user@example.com')
+        user_phone = session.get('phone', '')
+        profile = session.get('profile', {})
+        user_name = profile.get('name', user_email.split('@')[0])
+        user_location = profile.get('location', '')
+        user_bio = profile.get('bio', '')
+        
+        # Get user's own crop listings
+        user_crops = get_user_crops(user_email)
+        
+        logger.info(f"Serving sell page for user: {user_name}")
+        return render_template('sell.html', 
+                             user_email=user_email,
+                             user_phone=user_phone,
+                             user_name=user_name,
+                             user_location=user_location,
+                             user_bio=user_bio,
+                             user_crops=user_crops)
+    except Exception as e:
+        logger.error(f"Error serving sell page: {e}")
+        return "Error loading sell page.", 500
+
+@app.route('/market')
+def market_page():
+    """Market updates page"""
+    try:
+        # Check if user is logged in
+        if 'user_id' not in session:
+            logger.warning("Unauthorized access to market page - redirecting to login")
+            flash('Please login to access the market page', 'error')
+            return redirect('/login-page')
+        
+        # Get user data from session
+        user_email = session.get('email', 'user@example.com')
+        user_phone = session.get('phone', '')
+        profile = session.get('profile', {})
+        user_name = profile.get('name', user_email.split('@')[0])
+        user_location = profile.get('location', '')
+        user_bio = profile.get('bio', '')
+        
+        # Get market updates from database
+        market_updates = get_market_updates()
+        
+        logger.info(f"Serving market page for user: {user_name}")
+        return render_template('market.html', 
+                             user_email=user_email,
+                             user_phone=user_phone,
+                             user_name=user_name,
+                             user_location=user_location,
+                             user_bio=user_bio,
+                             market_updates=market_updates)
+    except Exception as e:
+        logger.error(f"Error serving market page: {e}")
+        return "Error loading market page.", 500
+
+@app.route('/buy')
+def buy_page():
+    """Buy crops page"""
+    try:
+        # Check if user is logged in
+        if 'user_id' not in session:
+            logger.warning("Unauthorized access to buy page - redirecting to login")
+            flash('Please login to access the buy page', 'error')
+            return redirect('/login-page')
+        
+        # Get user data from session
+        user_email = session.get('email', 'user@example.com')
+        user_phone = session.get('phone', '')
+        profile = session.get('profile', {})
+        user_name = profile.get('name', user_email.split('@')[0])
+        user_location = profile.get('location', '')
+        user_bio = profile.get('bio', '')
+        
+        # Get crops from database with filters
+        filters = {}
+        category = request.args.get('category')
+        location = request.args.get('location')
+        price_min = request.args.get('price_min', type=float)
+        price_max = request.args.get('price_max', type=float)
+        
+        if category:
+            filters['category'] = category
+        if location:
+            filters['location'] = location
+        if price_min is not None:
+            filters['price_min'] = price_min
+        if price_max is not None:
+            filters['price_max'] = price_max
+        
+        crops = get_crops(filters)
+        
+        logger.info(f"Serving buy page for user: {user_name}")
+        return render_template('buy.html', 
+                             user_email=user_email,
+                             user_phone=user_phone,
+                             user_name=user_name,
+                             user_location=user_location,
+                             user_bio=user_bio,
+                             crops=crops)
+    except Exception as e:
+        logger.error(f"Error serving buy page: {e}")
+        return "Error loading buy page.", 500
+
 @app.route('/test-booking')
 def test_booking():
     """Test route to check if booking page works"""
@@ -279,6 +520,279 @@ def test_booking():
 def debug_session():
     """Debug route to check session data"""
     return f"Session data: {dict(session)}"
+
+# Market Updates API Routes
+@app.route('/api/market-updates', methods=['GET'])
+def api_get_market_updates():
+    """Get all market updates"""
+    try:
+        updates = get_market_updates()
+        return jsonify({"success": True, "updates": updates})
+    except Exception as e:
+        logger.error(f"Error getting market updates: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/market-updates', methods=['POST'])
+def api_add_market_update():
+    """Add a new market update"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['title', 'category', 'description', 'impact']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({"success": False, "error": f"Missing required field: {field}"}), 400
+        
+        # Get user info from session
+        user_email = session.get('email', 'anonymous@example.com')
+        user_name = session.get('profile', {}).get('name', user_email.split('@')[0])
+        
+        # Create update data
+        update_data = {
+            'title': data['title'],
+            'category': data['category'],
+            'description': data['description'],
+            'impact': data['impact'],
+            'source': data.get('source', ''),
+            'author': user_name,
+            'author_email': user_email,
+            'created_at': datetime.utcnow()
+        }
+        
+        # Add to database
+        update_id = add_market_update(update_data)
+        
+        if update_id:
+            update_data['_id'] = update_id
+            return jsonify({"success": True, "update": update_data})
+        else:
+            return jsonify({"success": False, "error": "Failed to add market update"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error adding market update: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/market-updates/<update_id>', methods=['PUT'])
+def api_update_market_update(update_id):
+    """Update a market update"""
+    try:
+        data = request.get_json()
+        
+        # Get user info from session
+        user_email = session.get('email', 'anonymous@example.com')
+        
+        # Check if user is the author
+        from bson import ObjectId
+        update = market_updates_collection.find_one({"_id": ObjectId(update_id)})
+        if not update:
+            return jsonify({"success": False, "error": "Market update not found"}), 404
+        
+        if update.get('author_email') != user_email:
+            return jsonify({"success": False, "error": "Unauthorized to edit this update"}), 403
+        
+        # Update data
+        update_data = {
+            'title': data.get('title', update['title']),
+            'category': data.get('category', update['category']),
+            'description': data.get('description', update['description']),
+            'impact': data.get('impact', update['impact']),
+            'source': data.get('source', update.get('source', '')),
+            'updated_at': datetime.utcnow()
+        }
+        
+        success = update_market_update(update_id, update_data)
+        
+        if success:
+            return jsonify({"success": True, "message": "Market update updated successfully"})
+        else:
+            return jsonify({"success": False, "error": "Failed to update market update"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error updating market update: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/market-updates/<update_id>', methods=['DELETE'])
+def api_delete_market_update(update_id):
+    """Delete a market update"""
+    try:
+        # Get user info from session
+        user_email = session.get('email', 'anonymous@example.com')
+        
+        # Check if user is the author
+        from bson import ObjectId
+        update = market_updates_collection.find_one({"_id": ObjectId(update_id)})
+        if not update:
+            return jsonify({"success": False, "error": "Market update not found"}), 404
+        
+        if update.get('author_email') != user_email:
+            return jsonify({"success": False, "error": "Unauthorized to delete this update"}), 403
+        
+        success = delete_market_update(update_id)
+        
+        if success:
+            return jsonify({"success": True, "message": "Market update deleted successfully"})
+        else:
+            return jsonify({"success": False, "error": "Failed to delete market update"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error deleting market update: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Crops API Routes
+@app.route('/api/crops', methods=['GET'])
+def api_get_crops():
+    """Get all crops with optional filters"""
+    try:
+        # Get query parameters for filtering
+        category = request.args.get('category')
+        location = request.args.get('location')
+        price_min = request.args.get('price_min', type=float)
+        price_max = request.args.get('price_max', type=float)
+        
+        filters = {}
+        if category:
+            filters['category'] = category
+        if location:
+            filters['location'] = location
+        if price_min is not None:
+            filters['price_min'] = price_min
+        if price_max is not None:
+            filters['price_max'] = price_max
+        
+        crops = get_crops(filters)
+        return jsonify({"success": True, "crops": crops})
+    except Exception as e:
+        logger.error(f"Error getting crops: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/crops', methods=['POST'])
+def api_add_crop():
+    """Add a new crop listing"""
+    try:
+        data = request.get_json()
+        logger.info(f"Received crop data: {data}")
+        
+        # Validate required fields
+        required_fields = ['name', 'category', 'quantity', 'price_per_kg', 'location', 'description']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                logger.error(f"Missing required field: {field}")
+                return jsonify({"success": False, "error": f"Missing required field: {field}"}), 400
+        
+        # Get user info from session
+        user_email = session.get('email', 'anonymous@example.com')
+        user_name = session.get('profile', {}).get('name', user_email.split('@')[0])
+        
+        # Create crop data
+        crop_data = {
+            'name': data['name'],
+            'category': data['category'],
+            'quantity': int(data['quantity']),
+            'price_per_kg': float(data['price_per_kg']),
+            'total_price': int(data['quantity']) * float(data['price_per_kg']),
+            'location': data['location'],
+            'description': data['description'],
+            'seller_name': user_name,
+            'seller_email': user_email,
+            'seller_phone': session.get('phone', ''),
+            'is_active': True,
+            'created_at': datetime.utcnow()
+        }
+        
+        # Add to database
+        crop_id = add_crop(crop_data)
+        
+        if crop_id:
+            crop_data['_id'] = crop_id
+            return jsonify({"success": True, "crop": crop_data})
+        else:
+            return jsonify({"success": False, "error": "Failed to add crop listing"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error adding crop: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/crops/<crop_id>', methods=['PUT'])
+def api_update_crop(crop_id):
+    """Update a crop listing"""
+    try:
+        data = request.get_json()
+        
+        # Get user info from session
+        user_email = session.get('email', 'anonymous@example.com')
+        
+        # Check if user is the seller
+        from bson import ObjectId
+        crop = crops_collection.find_one({"_id": ObjectId(crop_id)})
+        if not crop:
+            return jsonify({"success": False, "error": "Crop listing not found"}), 404
+        
+        if crop.get('seller_email') != user_email:
+            return jsonify({"success": False, "error": "Unauthorized to edit this listing"}), 403
+        
+        # Update data
+        update_data = {}
+        if 'name' in data:
+            update_data['name'] = data['name']
+        if 'category' in data:
+            update_data['category'] = data['category']
+        if 'quantity' in data:
+            update_data['quantity'] = int(data['quantity'])
+        if 'price_per_kg' in data:
+            update_data['price_per_kg'] = float(data['price_per_kg'])
+        if 'location' in data:
+            update_data['location'] = data['location']
+        if 'description' in data:
+            update_data['description'] = data['description']
+        if 'is_active' in data:
+            update_data['is_active'] = data['is_active']
+        
+        # Recalculate total price if quantity or price changed
+        if 'quantity' in update_data or 'price_per_kg' in update_data:
+            quantity = update_data.get('quantity', crop['quantity'])
+            price_per_kg = update_data.get('price_per_kg', crop['price_per_kg'])
+            update_data['total_price'] = quantity * price_per_kg
+        
+        update_data['updated_at'] = datetime.utcnow()
+        
+        success = update_crop(crop_id, update_data)
+        
+        if success:
+            return jsonify({"success": True, "message": "Crop listing updated successfully"})
+        else:
+            return jsonify({"success": False, "error": "Failed to update crop listing"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error updating crop: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/crops/<crop_id>', methods=['DELETE'])
+def api_delete_crop(crop_id):
+    """Delete a crop listing"""
+    try:
+        # Get user info from session
+        user_email = session.get('email', 'anonymous@example.com')
+        
+        # Check if user is the seller
+        from bson import ObjectId
+        crop = crops_collection.find_one({"_id": ObjectId(crop_id)})
+        if not crop:
+            return jsonify({"success": False, "error": "Crop listing not found"}), 404
+        
+        if crop.get('seller_email') != user_email:
+            return jsonify({"success": False, "error": "Unauthorized to delete this listing"}), 403
+        
+        success = delete_crop(crop_id)
+        
+        if success:
+            return jsonify({"success": True, "message": "Crop listing deleted successfully"})
+        else:
+            return jsonify({"success": False, "error": "Failed to delete crop listing"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error deleting crop: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/test-booking-simple')
 def test_booking_simple():
@@ -496,6 +1010,7 @@ if __name__ == '__main__':
     except Exception as e:
         log_warning(f"Index creation warning: {e}")
     
+
     # Get configuration from environment variables
     debug_mode = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
     host = os.getenv('FLASK_HOST', '0.0.0.0')

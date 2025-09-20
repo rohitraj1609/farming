@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Buy Crops - Farming App{% endblock %}
+
+{% block head_extra %}
+<script>
+// Pass user data to the base template
+console.log('Setting user data in sessionStorage...');
+console.log('User email:', '{{ user_email or "user@example.com" }}');
+console.log('User name:', '{{ user_name or "User" }}');
+
+// Store user data in sessionStorage for the base template
+sessionStorage.setItem('userEmail', '{{ user_email or "user@example.com" }}');
+sessionStorage.setItem('userPhone', '{{ user_phone or "" }}');
+sessionStorage.setItem('userName', '{{ user_name or "User" }}');
+sessionStorage.setItem('userLocation', '{{ user_location or "" }}');
+sessionStorage.setItem('userBio', '{{ user_bio or "" }}');
+
+console.log('User data stored:', {
+    email: sessionStorage.getItem('userEmail'),
+    name: sessionStorage.getItem('userName'),
+    phone: sessionStorage.getItem('userPhone')
+});
+
+// Force navigation update after setting user data
+setTimeout(() => {
+    console.log('Forcing navigation update after user data is set...');
+    if (typeof updateNavigation === 'function') {
+        console.log('Calling updateNavigation...');
+        updateNavigation();
+    } else {
+        console.log('updateNavigation function not available yet, trying again...');
+        setTimeout(() => {
+            if (typeof updateNavigation === 'function') {
+                updateNavigation();
+            }
+        }, 200);
+    }
+}, 50);
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="buy-page">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1>🛒 Buy Crops</h1>
+            <p>Find and purchase fresh crops from local farmers</p>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+        <div class="search-wrapper">
+            <input type="text" placeholder="Search crops to buy..." class="search-input">
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons-section">
+        <div class="action-buttons-container">
+            <a href="/market" class="action-btn market-btn">
+                <span class="btn-icon">📊</span>
+                <span class="btn-text">Market Updates</span>
+            </a>
+            <a href="/sell" class="action-btn sell-btn">
+                <span class="btn-icon">🌾</span>
+                <span class="btn-text">Sell Crops</span>
+            </a>
+            <a href="/buy" class="action-btn buy-btn active">
+                <span class="btn-icon">🛒</span>
+                <span class="btn-text">Buy Crops</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <div class="filter-container">
+            <div class="filter-group">
+                <label>Category:</label>
+                <select id="category-filter">
+                    <option value="">All Crops</option>
+                    <option value="grains">Grains</option>
+                    <option value="vegetables">Vegetables</option>
+                    <option value="fruits">Fruits</option>
+                    <option value="spices">Spices</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Price Range:</label>
+                <select id="price-filter">
+                    <option value="">Any Price</option>
+                    <option value="0-25">₹0 - ₹25/kg</option>
+                    <option value="25-50">₹25 - ₹50/kg</option>
+                    <option value="50-100">₹50 - ₹100/kg</option>
+                    <option value="100+">₹100+/kg</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Location:</label>
+                <select id="location-filter">
+                    <option value="">All Locations</option>
+                    <option value="punjab">Punjab</option>
+                    <option value="haryana">Haryana</option>
+                    <option value="maharashtra">Maharashtra</option>
+                    <option value="karnataka">Karnataka</option>
+                </select>
+            </div>
+            
+            <button class="filter-btn" onclick="applyFilters()">Apply Filters</button>
+        </div>
+    </div>
+
+    <!-- Crop Listings -->
+    <div class="crop-listings">
+        <h2>Available Crops</h2>
+        <div class="listings-grid">
+            {% if crops %}
+                {% for crop in crops %}
+                <div class="crop-card {% if crop.seller_email == user_email %}own-listing{% endif %}">
+                    {% if crop.seller_email == user_email %}
+                    <div class="listing-badge">Your Listing</div>
+                    {% endif %}
+                    <div class="crop-image">
+                        <span class="crop-icon">
+                            {% if crop.category == 'grains' %}🌾
+                            {% elif crop.category == 'vegetables' %}🥕
+                            {% elif crop.category == 'fruits' %}🍎
+                            {% elif crop.category == 'spices' %}🌶️
+                            {% else %}🌱
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="crop-info">
+                        <h3>{{ crop.name }}</h3>
+                        <p class="farmer">By: {{ crop.seller_name }}</p>
+                        <p class="location">📍 {{ crop.location }}</p>
+                        <div class="crop-details">
+                            <span class="quantity">{{ crop.quantity }} kg available</span>
+                            <span class="harvest-date">
+                                {% if crop.created_at %}
+                                    Listed: {{ crop.created_at.strftime('%d %b %Y') }}
+                                {% else %}
+                                    Recently listed
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="price-section">
+                            <span class="price">₹{{ crop.price_per_kg }}/kg</span>
+                            <span class="total-price">Total: ₹{{ "{:,.0f}".format(crop.total_price) }}</span>
+                        </div>
+                        <div class="crop-actions">
+                            {% if crop.seller_email == user_email %}
+                                <!-- Show edit/delete buttons for own listings -->
+                                <button class="btn-edit" onclick="editCrop('{{ crop._id }}')">✏️ Edit</button>
+                                <button class="btn-delete" onclick="deleteCrop('{{ crop._id }}')">🗑️ Delete</button>
+                            {% else %}
+                                <!-- Show buy/contact buttons for other users' listings -->
+                                <button class="btn-contact" onclick="contactSeller('{{ crop.seller_phone }}', '{{ crop.name }}')">📞 Contact Seller</button>
+                                <button class="btn-buy" onclick="buyCrop('{{ crop._id }}')">🛒 Buy Now</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-crops">
+                    <div class="no-crops-icon">🌱</div>
+                    <h3>No crops available</h3>
+                    <p>Check back later for new crop listings!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function applyFilters() {
+    const category = document.getElementById('category-filter').value;
+    const price = document.getElementById('price-filter').value;
+    const location = document.getElementById('location-filter').value;
+    
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (location) params.append('location', location);
+    if (price) {
+        const [min, max] = price.split('-');
+        if (min) params.append('price_min', min);
+        if (max) params.append('price_max', max);
+    }
+    
+    // Reload page with filters
+    window.location.href = `/buy?${params.toString()}`;
+}
+
+function contactSeller(phone, cropName) {
+    const message = `Hi! I'm interested in buying your ${cropName}. Please contact me back.`;
+    const whatsappUrl = `https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`;
+    
+    if (confirm(`Contact ${cropName} seller?\n\nPhone: ${phone}\n\nOpen WhatsApp?`)) {
+        window.open(whatsappUrl, '_blank');
+    }
+}
+
+function buyCrop(cropId) {
+    // For now, just show an alert. In a real app, you'd open a purchase modal
+    alert('Purchase functionality will be implemented. Crop ID: ' + cropId);
+}
+
+function editCrop(cropId) {
+    // For now, just show an alert. In a real app, you'd open an edit modal
+    alert('Edit functionality will be implemented. Crop ID: ' + cropId);
+}
+
+function deleteCrop(cropId) {
+    if (confirm('Are you sure you want to delete this crop listing?')) {
+        fetch(`/api/crops/${cropId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Crop listing deleted successfully!');
+                location.reload(); // Refresh to update listings
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the crop.');
+        });
+    }
+}
+</script>
+{% endblock %}

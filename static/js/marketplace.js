@@ -1,91 +1,5 @@
 // Crop Marketplace functionality
-// Sample crops data
-const sampleCrops = [
-    {
-        id: 1,
-        name: 'Wheat',
-        emoji: '🌾',
-        type: 'wheat',
-        quantity: 500,
-        pricePerKg: 25,
-        totalPrice: 12500,
-        location: 'Punjab, India',
-        description: 'High quality wheat, freshly harvested. Organic farming methods used.',
-        contact: '+91 98765 43210',
-        harvestDate: '2024-01-15',
-        seller: 'Farmer Singh'
-    },
-    {
-        id: 2,
-        name: 'Tomatoes',
-        emoji: '🍅',
-        type: 'tomatoes',
-        quantity: 200,
-        pricePerKg: 40,
-        totalPrice: 8000,
-        location: 'Maharashtra, India',
-        description: 'Fresh red tomatoes, perfect for cooking and salads.',
-        contact: '+91 98765 43211',
-        harvestDate: '2024-01-20',
-        seller: 'Green Farm Co.'
-    },
-    {
-        id: 3,
-        name: 'Rice',
-        emoji: '🌾',
-        type: 'rice',
-        quantity: 300,
-        pricePerKg: 35,
-        totalPrice: 10500,
-        location: 'West Bengal, India',
-        description: 'Premium basmati rice, long grain variety.',
-        contact: '+91 98765 43212',
-        harvestDate: '2024-01-18',
-        seller: 'Rice Fields Ltd.'
-    },
-    {
-        id: 4,
-        name: 'Carrots',
-        emoji: '🥕',
-        type: 'carrots',
-        quantity: 150,
-        pricePerKg: 30,
-        totalPrice: 4500,
-        location: 'Himachal Pradesh, India',
-        description: 'Fresh organic carrots, rich in vitamins.',
-        contact: '+91 98765 43213',
-        harvestDate: '2024-01-22',
-        seller: 'Mountain Fresh'
-    },
-    {
-        id: 5,
-        name: 'Corn',
-        emoji: '🌽',
-        type: 'corn',
-        quantity: 400,
-        pricePerKg: 20,
-        totalPrice: 8000,
-        location: 'Karnataka, India',
-        description: 'Sweet corn, perfect for roasting or boiling.',
-        contact: '+91 98765 43214',
-        harvestDate: '2024-01-25',
-        seller: 'Corn King'
-    },
-    {
-        id: 6,
-        name: 'Potatoes',
-        emoji: '🥔',
-        type: 'potatoes',
-        quantity: 600,
-        pricePerKg: 15,
-        totalPrice: 9000,
-        location: 'Uttar Pradesh, India',
-        description: 'Fresh potatoes, great for all cooking purposes.',
-        contact: '+91 98765 43215',
-        harvestDate: '2024-01-28',
-        seller: 'Potato Paradise'
-    }
-];
+// Note: Crop data is now fetched from the database via API calls
 
 // Tab Switching Functionality
 function switchTab(tabName) {
@@ -119,35 +33,58 @@ function loadCrops() {
     const cropsGrid = document.getElementById('crops-grid');
     if (!cropsGrid) return;
     
-    cropsGrid.innerHTML = '';
+    cropsGrid.innerHTML = '<div class="loading">Loading crops...</div>';
     
-    sampleCrops.forEach(crop => {
-        const cropCard = createCropCard(crop);
-        cropsGrid.appendChild(cropCard);
-    });
-    
-    // Re-attach event listeners for new crop cards
-    attachEventListeners();
+    // Fetch crops from API
+    fetch('/api/crops')
+        .then(response => response.json())
+        .then(data => {
+            cropsGrid.innerHTML = '';
+            
+            if (data.success && data.crops.length > 0) {
+                data.crops.forEach(crop => {
+                    const cropCard = createCropCard(crop);
+                    cropsGrid.appendChild(cropCard);
+                });
+            } else {
+                cropsGrid.innerHTML = '<div class="no-crops">No crops available at the moment.</div>';
+            }
+            
+            // Re-attach event listeners for new crop cards
+            attachEventListeners();
+        })
+        .catch(error => {
+            console.error('Error loading crops:', error);
+            cropsGrid.innerHTML = '<div class="error">Error loading crops. Please try again.</div>';
+        });
 }
 
 // Create crop card element
 function createCropCard(crop) {
     const card = document.createElement('div');
     card.className = 'crop-card';
+    
+    // Get appropriate emoji based on category
+    let emoji = '🌱';
+    if (crop.category === 'grains') emoji = '🌾';
+    else if (crop.category === 'vegetables') emoji = '🥕';
+    else if (crop.category === 'fruits') emoji = '🍎';
+    else if (crop.category === 'spices') emoji = '🌶️';
+    
     card.innerHTML = `
-        <div class="crop-image ${crop.type}">
-            <div class="crop-emoji">${crop.emoji}</div>
+        <div class="crop-image ${crop.category}">
+            <div class="crop-emoji">${emoji}</div>
         </div>
         <div class="crop-info">
             <div class="crop-name">${crop.name}</div>
             <div class="crop-details">
-                <span class="crop-price">₹${crop.totalPrice.toLocaleString()}</span>
+                <span class="crop-price">₹${crop.total_price.toLocaleString()}</span>
                 <span class="crop-quantity">${crop.quantity} kg</span>
             </div>
             <div class="crop-location">📍 ${crop.location}</div>
-            <div class="crop-description">${crop.description}</div>
+            <div class="crop-description">${crop.description || 'No description available'}</div>
             <div class="crop-actions">
-                <button class="contact-btn" onclick="contactSeller('${crop.contact}', '${crop.name}')">
+                <button class="contact-btn" onclick="contactSeller('${crop.seller_phone || ''}', '${crop.name}')">
                     📞 Contact
                 </button>
                 <button class="interest-btn" onclick="toggleInterest(this)">
@@ -258,45 +195,60 @@ function loadMyListings() {
     
     if (!myListingsGrid || !noListings) return;
     
-    // Filter crops where seller is 'You'
-    const myCrops = sampleCrops.filter(crop => crop.seller === 'You');
+    myListingsGrid.innerHTML = '<div class="loading">Loading your listings...</div>';
     
-    if (myCrops.length === 0) {
-        myListingsGrid.style.display = 'none';
-        noListings.style.display = 'block';
-        return;
-    }
-    
-    myListingsGrid.style.display = 'grid';
-    noListings.style.display = 'none';
-    myListingsGrid.innerHTML = '';
-    
-    myCrops.forEach(crop => {
-        const listingCard = createMyListingCard(crop);
-        myListingsGrid.appendChild(listingCard);
-    });
-    
-    // Re-attach event listeners for new listing cards
-    attachEventListeners();
+    // Fetch user's crops from API
+    fetch('/api/crops')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.crops.length > 0) {
+                myListingsGrid.style.display = 'grid';
+                noListings.style.display = 'none';
+                myListingsGrid.innerHTML = '';
+                
+                data.crops.forEach(crop => {
+                    const listingCard = createMyListingCard(crop);
+                    myListingsGrid.appendChild(listingCard);
+                });
+            } else {
+                myListingsGrid.style.display = 'none';
+                noListings.style.display = 'block';
+            }
+            
+            // Re-attach event listeners for new listing cards
+            attachEventListeners();
+        })
+        .catch(error => {
+            console.error('Error loading listings:', error);
+            myListingsGrid.innerHTML = '<div class="error">Error loading listings. Please try again.</div>';
+        });
 }
 
 // Create my listing card
 function createMyListingCard(crop) {
     const card = document.createElement('div');
     card.className = 'my-listing-card';
+    
+    // Get appropriate emoji based on category
+    let emoji = '🌱';
+    if (crop.category === 'grains') emoji = '🌾';
+    else if (crop.category === 'vegetables') emoji = '🥕';
+    else if (crop.category === 'fruits') emoji = '🍎';
+    else if (crop.category === 'spices') emoji = '🌶️';
+    
     card.innerHTML = `
         <div class="my-listing-header">
-            <div class="my-listing-name">${crop.emoji} ${crop.name}</div>
-            <div class="my-listing-status">Active</div>
+            <div class="my-listing-name">${emoji} ${crop.name}</div>
+            <div class="my-listing-status">${crop.is_active ? 'Active' : 'Inactive'}</div>
         </div>
         <div class="my-listing-details">
-            <span class="my-listing-price">₹${crop.totalPrice.toLocaleString()}</span>
+            <span class="my-listing-price">₹${crop.total_price.toLocaleString()}</span>
             <span class="my-listing-quantity">${crop.quantity} kg</span>
         </div>
         <div class="my-listing-location">📍 ${crop.location}</div>
         <div class="my-listing-actions">
-            <button class="edit-btn" onclick="editListing(${crop.id})">✏️ Edit</button>
-            <button class="delete-btn" onclick="deleteListing(${crop.id})">🗑️ Delete</button>
+            <button class="edit-btn" onclick="editListing('${crop._id}')">✏️ Edit</button>
+            <button class="delete-btn" onclick="deleteListing('${crop._id}')">🗑️ Delete</button>
         </div>
     `;
     return card;
@@ -310,39 +262,33 @@ function refreshMyListings() {
 
 // Edit listing
 function editListing(cropId) {
-    const crop = sampleCrops.find(c => c.id === cropId);
-    if (!crop) return;
-    
-    const newPrice = prompt(`Edit price per kg for ${crop.name} (current: ₹${crop.pricePerKg}):`, crop.pricePerKg);
-    if (newPrice && !isNaN(newPrice) && newPrice > 0) {
-        crop.pricePerKg = parseInt(newPrice);
-        crop.totalPrice = crop.quantity * crop.pricePerKg;
-        
-        // Refresh both my listings and buy tab
-        loadMyListings();
-        if (document.getElementById('buy-content').classList.contains('hidden') === false) {
-            loadCrops();
-        }
-        
-        alert('Listing updated successfully!');
-    }
+    // For now, just show an alert. In a real app, you'd open an edit modal
+    alert('Edit functionality will be implemented. Crop ID: ' + cropId);
 }
 
 // Delete listing
 function deleteListing(cropId) {
     if (confirm('Are you sure you want to delete this listing?')) {
-        const index = sampleCrops.findIndex(c => c.id === cropId);
-        if (index > -1) {
-            sampleCrops.splice(index, 1);
-            
-            // Refresh both my listings and buy tab
-            loadMyListings();
-            if (document.getElementById('buy-content').classList.contains('hidden') === false) {
-                loadCrops();
+        fetch(`/api/crops/${cropId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Listing deleted successfully!');
+                // Refresh both my listings and buy tab
+                loadMyListings();
+                if (document.getElementById('buy-content') && !document.getElementById('buy-content').classList.contains('hidden')) {
+                    loadCrops();
+                }
+            } else {
+                alert('Error: ' + data.error);
             }
-            
-            alert('Listing deleted successfully!');
-        }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the listing.');
+        });
     }
 }
 

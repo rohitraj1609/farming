@@ -323,6 +323,52 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Market News Functionality
+    function showMarketNews() {
+        const marketSection = document.getElementById('market-news-section');
+        const marketBtn = document.getElementById('market-btn');
+        const btnText = marketBtn.querySelector('.btn-text');
+        
+        if (marketSection && marketBtn && btnText) {
+            if (marketSection.style.display === 'none') {
+                marketSection.style.display = 'block';
+                btnText.textContent = 'Hide Updates';
+                marketBtn.classList.add('active');
+            } else {
+                marketSection.style.display = 'none';
+                btnText.textContent = 'Market Updates';
+                marketBtn.classList.remove('active');
+            }
+        }
+    }
+
+    // Tab Switching Functionality
+    function switchTab(tabName) {
+        // Remove active class from all buttons
+        const allButtons = document.querySelectorAll('.action-btn');
+        allButtons.forEach(btn => btn.classList.remove('active'));
+        
+        // Add active class to clicked button
+        const activeButton = document.getElementById(tabName + '-tab');
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
+        
+        // Hide all tab contents
+        const sellContent = document.getElementById('sell-content');
+        const buyContent = document.getElementById('buy-content');
+        
+        if (sellContent) sellContent.style.display = 'none';
+        if (buyContent) buyContent.style.display = 'none';
+        
+        // Show selected tab content
+        if (tabName === 'sell' && sellContent) {
+            sellContent.style.display = 'block';
+        } else if (tabName === 'buy' && buyContent) {
+            buyContent.style.display = 'block';
+        }
+    }
+
     // Make functions globally accessible
     window.toggleProfileDropdown = toggleProfileDropdown;
     window.showProfileSettings = showProfileSettings;
@@ -333,6 +379,8 @@ document.addEventListener('DOMContentLoaded', function() {
     window.closeListingsModal = closeListingsModal;
     window.confirmLogout = confirmLogout;
     window.updateNavigation = updateNavigation;
+    window.showMarketNews = showMarketNews;
+    window.switchTab = switchTab;
     
     // Update navigation on page load
     updateNavigation();

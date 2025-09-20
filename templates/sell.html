@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Sell Crops - Farming App{% endblock %}
+
+{% block head_extra %}
+<script>
+// Pass user data to the base template
+console.log('Setting user data in sessionStorage...');
+console.log('User email:', '{{ user_email or "user@example.com" }}');
+console.log('User name:', '{{ user_name or "User" }}');
+
+// Store user data in sessionStorage for the base template
+sessionStorage.setItem('userEmail', '{{ user_email or "user@example.com" }}');
+sessionStorage.setItem('userPhone', '{{ user_phone or "" }}');
+sessionStorage.setItem('userName', '{{ user_name or "User" }}');
+sessionStorage.setItem('userLocation', '{{ user_location or "" }}');
+sessionStorage.setItem('userBio', '{{ user_bio or "" }}');
+
+console.log('User data stored:', {
+    email: sessionStorage.getItem('userEmail'),
+    name: sessionStorage.getItem('userName'),
+    phone: sessionStorage.getItem('userPhone')
+});
+
+// Force navigation update after setting user data
+setTimeout(() => {
+    console.log('Forcing navigation update after user data is set...');
+    if (typeof updateNavigation === 'function') {
+        console.log('Calling updateNavigation...');
+        updateNavigation();
+    } else {
+        console.log('updateNavigation function not available yet, trying again...');
+        setTimeout(() => {
+            if (typeof updateNavigation === 'function') {
+                updateNavigation();
+            }
+        }, 200);
+    }
+}, 50);
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="sell-page">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1>🌾 Sell Your Crops</h1>
+            <p>List your harvest and connect with buyers</p>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+        <div class="search-wrapper">
+            <input type="text" placeholder="Search your listings..." class="search-input">
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons-section">
+        <div class="action-buttons-container">
+            <a href="/market" class="action-btn market-btn">
+                <span class="btn-icon">📊</span>
+                <span class="btn-text">Market Updates</span>
+            </a>
+            <a href="/sell" class="action-btn sell-btn active">
+                <span class="btn-icon">🌾</span>
+                <span class="btn-text">Sell Crops</span>
+            </a>
+            <a href="/buy" class="action-btn buy-btn">
+                <span class="btn-icon">🛒</span>
+                <span class="btn-text">Buy Crops</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Sell Form Card -->
+    <div class="sell-form-container">
+        <div class="service-card sell-card">
+            <div class="card-header">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <span>🌾</span>
+                    </div>
+                    <div class="user-details">
+                        <h3>List Your Crop</h3>
+                        <p>Sell Your Harvest</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card-content">
+                <form class="sell-form" id="crop-form">
+                    <div class="form-group">
+                        <label for="crop-name">Crop Name</label>
+                        <input type="text" id="crop-name" name="crop-name" placeholder="Enter crop name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" name="category" required>
+                            <option value="">Select Category</option>
+                            <option value="grains">Grains</option>
+                            <option value="vegetables">Vegetables</option>
+                            <option value="fruits">Fruits</option>
+                            <option value="spices">Spices</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="quantity">Quantity (kg)</label>
+                            <input type="number" id="quantity" name="quantity" placeholder="Enter quantity" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="price">Price per kg (₹)</label>
+                            <input type="number" id="price" name="price" placeholder="Enter price per kg" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="location">Farm Location</label>
+                        <input type="text" id="location" name="location" placeholder="Enter your farm location" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description" placeholder="Describe your crop quality, organic status, etc." rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn">List My Crop</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Listings Section -->
+    <div class="listings-section">
+        <h2>My Active Listings</h2>
+        <div class="listings-grid" id="listings-grid">
+            {% if user_crops %}
+                {% for crop in user_crops %}
+                <div class="listing-item">
+                    <div class="listing-header">
+                        <h3>{{ crop.name }}</h3>
+                        <span class="status {% if crop.is_active %}active{% else %}pending{% endif %}">
+                            {% if crop.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                    <div class="listing-details">
+                        <p><strong>Category:</strong> {{ crop.category|title }}</p>
+                        <p><strong>Quantity:</strong> {{ crop.quantity }} kg</p>
+                        <p><strong>Price:</strong> ₹{{ crop.price_per_kg }}/kg</p>
+                        <p><strong>Total Value:</strong> ₹{{ "{:,.0f}".format(crop.total_price) }}</p>
+                        <p><strong>Location:</strong> {{ crop.location }}</p>
+                        <p><strong>Listed:</strong> 
+                            {% if crop.created_at %}
+                                {{ crop.created_at.strftime('%d %b %Y') }}
+                            {% else %}
+                                Recently
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="listing-actions">
+                        <button class="btn-edit" onclick="editCrop('{{ crop._id }}')">Edit</button>
+                        <button class="btn-delete" onclick="deleteCrop('{{ crop._id }}')">Delete</button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-listings">
+                    <div class="no-listings-icon">🌱</div>
+                    <h3>No listings yet</h3>
+                    <p>Create your first crop listing using the form above!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Crop management functions
+function addCrop() {
+    const form = document.getElementById('crop-form');
+    const formData = new FormData(form);
+    
+    const cropData = {
+        name: formData.get('crop-name'),
+        category: formData.get('category'),
+        quantity: parseInt(formData.get('quantity')),
+        price_per_kg: parseFloat(formData.get('price')),
+        location: formData.get('location'),
+        description: formData.get('description')
+    };
+    
+    console.log('Form data:', cropData);
+    
+    // Validate required fields
+    if (!cropData.name || !cropData.category || !cropData.quantity || !cropData.price_per_kg || !cropData.location) {
+        alert('Please fill in all required fields!');
+        console.log('Validation failed:', {
+            name: cropData.name,
+            category: cropData.category,
+            quantity: cropData.quantity,
+            price_per_kg: cropData.price_per_kg,
+            location: cropData.location
+        });
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = form.querySelector('.submit-btn');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Adding Crop...';
+    submitBtn.disabled = true;
+    
+    // Send to API
+    console.log('Sending API request:', cropData);
+    fetch('/api/crops', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(cropData)
+    })
+    .then(response => {
+        console.log('API response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('API response data:', data);
+        if (data.success) {
+            alert('Crop listed successfully!');
+            form.reset();
+            location.reload(); // Refresh to show new listing
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while adding the crop.');
+    })
+    .finally(() => {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+}
+
+function editCrop(cropId) {
+    // For now, just show an alert. In a real app, you'd open an edit modal
+    alert('Edit functionality will be implemented. Crop ID: ' + cropId);
+}
+
+function deleteCrop(cropId) {
+    if (confirm('Are you sure you want to delete this crop listing?')) {
+        fetch(`/api/crops/${cropId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Crop listing deleted successfully!');
+                location.reload(); // Refresh to update listings
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the crop.');
+        });
+    }
+}
+
+// Add form submission handler
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('crop-form');
+    if (form) {
+        console.log('Form found, adding submit listener');
+        form.addEventListener('submit', function(e) {
+            console.log('Form submit event triggered');
+            e.preventDefault();
+            console.log('Prevented default, calling addCrop()');
+            addCrop();
+        });
+    } else {
+        console.error('Form with id="crop-form" not found');
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}Market Updates - Farming App{% endblock %}
+
+{% block head_extra %}
+<script>
+// Pass user data to the base template
+console.log('Setting user data in sessionStorage...');
+console.log('User email:', '{{ user_email or "user@example.com" }}');
+console.log('User name:', '{{ user_name or "User" }}');
+
+// Store user data in sessionStorage for the base template
+sessionStorage.setItem('userEmail', '{{ user_email or "user@example.com" }}');
+sessionStorage.setItem('userPhone', '{{ user_phone or "" }}');
+sessionStorage.setItem('userName', '{{ user_name or "User" }}');
+sessionStorage.setItem('userLocation', '{{ user_location or "" }}');
+sessionStorage.setItem('userBio', '{{ user_bio or "" }}');
+
+console.log('User data stored:', {
+    email: sessionStorage.getItem('userEmail'),
+    name: sessionStorage.getItem('userName'),
+    phone: sessionStorage.getItem('userPhone')
+});
+
+// Force navigation update after setting user data
+setTimeout(() => {
+    console.log('Forcing navigation update after user data is set...');
+    if (typeof updateNavigation === 'function') {
+        console.log('Calling updateNavigation...');
+        updateNavigation();
+    } else {
+        console.log('updateNavigation function not available yet, trying again...');
+        setTimeout(() => {
+            if (typeof updateNavigation === 'function') {
+                updateNavigation();
+            }
+        }, 200);
+    }
+}, 50);
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="market-page">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1>📊 Market Updates</h1>
+            <p>Stay informed with latest agricultural market trends</p>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+        <div class="search-wrapper">
+            <input type="text" placeholder="Search market news..." class="search-input">
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons-section">
+        <div class="action-buttons-container">
+            <a href="/market" class="action-btn market-btn active">
+                <span class="btn-icon">📊</span>
+                <span class="btn-text">Market Updates</span>
+            </a>
+            <a href="/sell" class="action-btn sell-btn">
+                <span class="btn-icon">🌾</span>
+                <span class="btn-text">Sell Crops</span>
+            </a>
+            <a href="/buy" class="action-btn buy-btn">
+                <span class="btn-icon">🛒</span>
+                <span class="btn-text">Buy Crops</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Market Overview Cards -->
+    <div class="market-overview">
+        <div class="overview-card">
+            <div class="card-icon">📈</div>
+            <div class="card-content">
+                <h3>Wheat Price</h3>
+                <div class="price">₹2,450/Quintal</div>
+                <div class="change positive">+5.2%</div>
+            </div>
+        </div>
+        
+        <div class="overview-card">
+            <div class="card-icon">🌽</div>
+            <div class="card-content">
+                <h3>Corn Price</h3>
+                <div class="price">₹1,850/Quintal</div>
+                <div class="change positive">+2.8%</div>
+            </div>
+        </div>
+        
+        <div class="overview-card">
+            <div class="card-icon">🍅</div>
+            <div class="card-content">
+                <h3>Tomato Price</h3>
+                <div class="price">₹45/kg</div>
+                <div class="change negative">-3.1%</div>
+            </div>
+        </div>
+        
+        <div class="overview-card">
+            <div class="card-icon">🥕</div>
+            <div class="card-content">
+                <h3>Carrot Price</h3>
+                <div class="price">₹35/kg</div>
+                <div class="change positive">+1.5%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Latest News Section -->
+    <div class="market-news-section">
+        <div class="market-news-header">
+            <h2>📈 Latest Market News</h2>
+            <button class="refresh-btn" onclick="refreshNews()">🔄 Refresh</button>
+        </div>
+        <div class="market-news-content" id="market-news-content">
+            <!-- Market updates will be loaded here from database -->
+            {% for update in market_updates %}
+            <div class="news-item" data-update-id="{{ update._id }}">
+                <div class="news-header">
+                    <div class="news-time">
+                        {% if update.created_at %}
+                            {{ update.created_at.strftime('%H:%M') }}
+                        {% else %}
+                            Unknown time
+                        {% endif %}
+                    </div>
+                    <div class="news-author">👤 {{ update.author }}</div>
+                </div>
+                <div class="news-title">{{ update.title }}</div>
+                <div class="news-summary">{{ update.description }}</div>
+                <div class="news-tags">
+                    <span class="tag">{{ update.category }}</span>
+                    <span class="tag {% if update.impact == 'positive' %}positive{% elif update.impact == 'negative' %}negative{% else %}neutral{% endif %}">
+                        {% if update.impact == 'positive' %}📈 Positive Impact{% elif update.impact == 'negative' %}📉 Negative Impact{% else %}➡️ Neutral Impact{% endif %}
+                    </span>
+                    {% if update.source %}<span class="tag">Source: {{ update.source }}</span>{% endif %}
+                </div>
+                {% if update.author_email == user_email %}
+                <div class="news-actions">
+                    <button class="btn-edit-news" onclick="editMarketUpdate('{{ update._id }}')">✏️ Edit</button>
+                    <button class="btn-delete-news" onclick="deleteMarketUpdate('{{ update._id }}')">🗑️ Delete</button>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            
+            <!-- Default news if no database updates -->
+            {% if not market_updates %}
+            <div class="news-item featured">
+                <div class="news-header">
+                    <div class="news-time">2 hours ago</div>
+                    <div class="news-author">👤 System</div>
+                </div>
+                <div class="news-title">Wheat prices rise 5% due to weather concerns</div>
+                <div class="news-summary">Heavy rainfall in northern regions affects wheat harvest, driving prices up. Farmers are advised to monitor weather forecasts closely.</div>
+                <div class="news-tags">
+                    <span class="tag">price</span>
+                    <span class="tag positive">📈 Positive Impact</span>
+                    <span class="tag">Source: Weather Report</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Market Analysis Section -->
+    <div class="market-analysis">
+        <h2>📊 Market Analysis</h2>
+        <div class="analysis-grid">
+            <div class="analysis-card">
+                <h3>Price Trends</h3>
+                <div class="trend-chart">
+                    <div class="chart-placeholder">
+                        📈 Price trend chart would be here
+                    </div>
+                </div>
+            </div>
+            
+            <div class="analysis-card">
+                <h3>Demand Forecast</h3>
+                <div class="forecast-data">
+                    <div class="forecast-item">
+                        <span class="crop">Wheat</span>
+                        <span class="forecast">High Demand</span>
+                    </div>
+                    <div class="forecast-item">
+                        <span class="crop">Rice</span>
+                        <span class="forecast">Stable</span>
+                    </div>
+                    <div class="forecast-item">
+                        <span class="crop">Tomato</span>
+                        <span class="forecast">Growing</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Add Button -->
+    <div class="floating-add-btn" onclick="showAddMarketUpdateModal()">
+        <span class="add-icon">+</span>
+    </div>
+
+    <!-- Add Market Update Modal -->
+    <div class="modal-overlay" id="add-market-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📊 Add Market Update</h3>
+                <button class="close-btn" onclick="closeAddMarketModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-market-form">
+                    <div class="form-group">
+                        <label for="update-title">Update Title</label>
+                        <input type="text" id="update-title" placeholder="Enter update title" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="update-category">Category</label>
+                        <select id="update-category" required>
+                            <option value="">Select Category</option>
+                            <option value="price">Price Update</option>
+                            <option value="weather">Weather Impact</option>
+                            <option value="demand">Demand & Supply</option>
+                            <option value="policy">Government Policy</option>
+                            <option value="technology">Technology</option>
+                            <option value="export">Export/Import</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="update-description">Description</label>
+                        <textarea id="update-description" placeholder="Describe the market update in detail..." rows="4" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="update-impact">Market Impact</label>
+                        <select id="update-impact">
+                            <option value="positive">Positive Impact</option>
+                            <option value="negative">Negative Impact</option>
+                            <option value="neutral">Neutral Impact</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="update-source">Source (Optional)</label>
+                        <input type="text" id="update-source" placeholder="e.g., Government Report, News Agency">
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" onclick="closeAddMarketModal()">Cancel</button>
+                        <button type="submit" class="btn-submit">Add Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshNews() {
+    const refreshBtn = document.querySelector('.refresh-btn');
+    refreshBtn.textContent = '🔄 Refreshing...';
+    refreshBtn.disabled = true;
+    
+    // Simulate API call
+    setTimeout(() => {
+        refreshBtn.textContent = '🔄 Refresh';
+        refreshBtn.disabled = false;
+        alert('Market news refreshed!');
+    }, 2000);
+}
+
+function showAddMarketUpdateModal() {
+    const modal = document.getElementById('add-market-modal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+}
+
+function closeAddMarketModal() {
+    const modal = document.getElementById('add-market-modal');
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto'; // Restore scrolling
+}
+
+
+function addMarketUpdateToPage(update) {
+    const newsContent = document.querySelector('.market-news-content');
+    const newItem = document.createElement('div');
+    newItem.className = 'news-item';
+    newItem.setAttribute('data-update-id', update.id);
+    
+    // Determine impact color
+    let impactClass = '';
+    let impactText = '';
+    if (update.impact === 'positive') {
+        impactClass = 'positive';
+        impactText = '📈 Positive Impact';
+    } else if (update.impact === 'negative') {
+        impactClass = 'negative';
+        impactText = '📉 Negative Impact';
+    } else {
+        impactClass = 'neutral';
+        impactText = '➡️ Neutral Impact';
+    }
+    
+    // Check if current user is the author
+    const currentUserEmail = sessionStorage.getItem('userEmail');
+    const isAuthor = update.authorEmail === currentUserEmail;
+    
+    newItem.innerHTML = `
+        <div class="news-header">
+            <div class="news-time">${update.timestamp}</div>
+            <div class="news-author">👤 ${update.author}</div>
+        </div>
+        <div class="news-title">${update.title}</div>
+        <div class="news-summary">${update.description}</div>
+        <div class="news-tags">
+            <span class="tag">${update.category}</span>
+            <span class="tag ${impactClass}">${impactText}</span>
+            ${update.source ? `<span class="tag">Source: ${update.source}</span>` : ''}
+        </div>
+        ${isAuthor ? `
+            <div class="news-actions">
+                <button class="btn-edit-news" onclick="editMarketUpdate(${update.id})">✏️ Edit</button>
+                <button class="btn-delete-news" onclick="deleteMarketUpdate(${update.id})">🗑️ Delete</button>
+            </div>
+        ` : ''}
+    `;
+    
+    // Insert at the top of news
+    newsContent.insertBefore(newItem, newsContent.firstChild);
+}
+
+// Close modal when clicking outside
+document.getElementById('add-market-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAddMarketModal();
+    }
+});
+
+// Edit market update
+function editMarketUpdate(updateId) {
+    const newsItem = document.querySelector(`[data-update-id="${updateId}"]`);
+    if (!newsItem) return;
+    
+    // Get current values
+    const title = newsItem.querySelector('.news-title').textContent;
+    const description = newsItem.querySelector('.news-summary').textContent;
+    const category = newsItem.querySelector('.tag').textContent;
+    const impact = newsItem.querySelector('.tag.positive, .tag.negative, .tag.neutral');
+    const source = newsItem.querySelector('.tag:last-child')?.textContent.replace('Source: ', '') || '';
+    
+    // Pre-fill the form
+    document.getElementById('update-title').value = title;
+    document.getElementById('update-category').value = category.toLowerCase();
+    document.getElementById('update-description').value = description;
+    document.getElementById('update-source').value = source;
+    
+    // Determine impact value
+    if (impact.classList.contains('positive')) {
+        document.getElementById('update-impact').value = 'positive';
+    } else if (impact.classList.contains('negative')) {
+        document.getElementById('update-impact').value = 'negative';
+    } else {
+        document.getElementById('update-impact').value = 'neutral';
+    }
+    
+    // Show modal
+    showAddMarketUpdateModal();
+    
+    // Store the update ID for editing
+    document.getElementById('add-market-form').setAttribute('data-editing-id', updateId);
+}
+
+// Delete market update
+function deleteMarketUpdate(updateId) {
+    if (confirm('Are you sure you want to delete this market update?')) {
+        deleteMarketUpdateAPI(updateId);
+    }
+}
+
+// Update form submission to handle editing
+document.getElementById('add-market-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const editingId = this.getAttribute('data-editing-id');
+    const title = document.getElementById('update-title').value;
+    const category = document.getElementById('update-category').value;
+    const description = document.getElementById('update-description').value;
+    const impact = document.getElementById('update-impact').value;
+    const source = document.getElementById('update-source').value;
+    
+    if (editingId) {
+        // Editing existing update
+        updateMarketUpdateAPI(editingId, {
+            title: title,
+            category: category,
+            description: description,
+            impact: impact,
+            source: source
+        });
+    } else {
+        // Creating new update
+        addMarketUpdateAPI({
+            title: title,
+            category: category,
+            description: description,
+            impact: impact,
+            source: source
+        });
+    }
+    
+    // Close modal and reset form
+    closeAddMarketModal();
+    document.getElementById('add-market-form').reset();
+});
+
+// API Functions
+async function addMarketUpdateAPI(updateData) {
+    try {
+        const response = await fetch('/api/market-updates', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            addMarketUpdateToPage(result.update);
+            alert('Market update added successfully!');
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error adding market update:', error);
+        alert('Error adding market update. Please try again.');
+    }
+}
+
+async function updateMarketUpdateAPI(updateId, updateData) {
+    try {
+        const response = await fetch(`/api/market-updates/${updateId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Reload the page to show updated data
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error updating market update:', error);
+        alert('Error updating market update. Please try again.');
+    }
+}
+
+async function deleteMarketUpdateAPI(updateId) {
+    try {
+        const response = await fetch(`/api/market-updates/${updateId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Remove from page
+            const newsItem = document.querySelector(`[data-update-id="${updateId}"]`);
+            if (newsItem) {
+                newsItem.remove();
+            }
+            alert('Market update deleted successfully!');
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error deleting market update:', error);
+        alert('Error deleting market update. Please try again.');
+    }
+}
+</script>
+{% endblock %}
