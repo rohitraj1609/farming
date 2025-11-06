@@ -45,15 +45,15 @@ setTimeout(() => {
     <!-- Page Header -->
     <div class="page-header">
         <div class="header-content">
-            <h1>📊 Market Updates</h1>
-            <p>Stay informed with latest agricultural market trends</p>
+            <h1 data-translate="market.title">📊 Market Updates</h1>
+            <p data-translate="market.subtitle">Stay informed with latest agricultural market trends</p>
         </div>
     </div>
 
     <!-- Search Bar -->
     <div class="search-container">
         <div class="search-wrapper">
-            <input type="text" placeholder="Search market news..." class="search-input">
+            <input type="text" placeholder="Search market news..." class="search-input" data-translate="market.search">
         </div>
     </div>
 
@@ -62,15 +62,15 @@ setTimeout(() => {
         <div class="action-buttons-container">
             <a href="/market" class="action-btn market-btn active">
                 <span class="btn-icon">📊</span>
-                <span class="btn-text">Market Updates</span>
+                <span class="btn-text" data-translate="actions.marketUpdates">Market Updates</span>
             </a>
             <a href="/sell" class="action-btn sell-btn">
                 <span class="btn-icon">🌾</span>
-                <span class="btn-text">Sell Crops</span>
+                <span class="btn-text" data-translate="actions.sellCrops">Sell Crops</span>
             </a>
             <a href="/buy" class="action-btn buy-btn">
                 <span class="btn-icon">🛒</span>
-                <span class="btn-text">Buy Crops</span>
+                <span class="btn-text" data-translate="actions.buyCrops">Buy Crops</span>
             </a>
         </div>
     </div>
@@ -80,7 +80,7 @@ setTimeout(() => {
         <div class="overview-card">
             <div class="card-icon">📈</div>
             <div class="card-content">
-                <h3>Wheat Price</h3>
+                <h3 data-translate="market.wheatPrice">Wheat Price</h3>
                 <div class="price">₹2,450/Quintal</div>
                 <div class="change positive">+5.2%</div>
             </div>
@@ -89,7 +89,7 @@ setTimeout(() => {
         <div class="overview-card">
             <div class="card-icon">🌽</div>
             <div class="card-content">
-                <h3>Corn Price</h3>
+                <h3 data-translate="market.cornPrice">Corn Price</h3>
                 <div class="price">₹1,850/Quintal</div>
                 <div class="change positive">+2.8%</div>
             </div>
@@ -98,7 +98,7 @@ setTimeout(() => {
         <div class="overview-card">
             <div class="card-icon">🍅</div>
             <div class="card-content">
-                <h3>Tomato Price</h3>
+                <h3 data-translate="market.tomatoPrice">Tomato Price</h3>
                 <div class="price">₹45/kg</div>
                 <div class="change negative">-3.1%</div>
             </div>
@@ -107,7 +107,7 @@ setTimeout(() => {
         <div class="overview-card">
             <div class="card-icon">🥕</div>
             <div class="card-content">
-                <h3>Carrot Price</h3>
+                <h3 data-translate="market.carrotPrice">Carrot Price</h3>
                 <div class="price">₹35/kg</div>
                 <div class="change positive">+1.5%</div>
             </div>
@@ -117,8 +117,8 @@ setTimeout(() => {
     <!-- Latest News Section -->
     <div class="market-news-section">
         <div class="market-news-header">
-            <h2>📈 Latest Market News</h2>
-            <button class="refresh-btn" onclick="refreshNews()">🔄 Refresh</button>
+            <h2 data-translate="market.latestNews">📈 Latest Market News</h2>
+            <button class="refresh-btn" onclick="refreshNews()" data-translate="market.refresh">🔄 Refresh</button>
         </div>
         <div class="market-news-content" id="market-news-content">
             <!-- Market updates will be loaded here from database -->
@@ -129,7 +129,7 @@ setTimeout(() => {
                         {% if update.created_at %}
                             {{ update.created_at.strftime('%H:%M') }}
                         {% else %}
-                            Unknown time
+                            <span data-translate="market.unknownTime">Unknown time</span>
                         {% endif %}
                     </div>
                     <div class="news-author">👤 {{ update.author }}</div>
@@ -139,14 +139,14 @@ setTimeout(() => {
                 <div class="news-tags">
                     <span class="tag">{{ update.category }}</span>
                     <span class="tag {% if update.impact == 'positive' %}positive{% elif update.impact == 'negative' %}negative{% else %}neutral{% endif %}">
-                        {% if update.impact == 'positive' %}📈 Positive Impact{% elif update.impact == 'negative' %}📉 Negative Impact{% else %}➡️ Neutral Impact{% endif %}
+                        {% if update.impact == 'positive' %}📈 <span data-translate="market.positiveImpact">Positive Impact</span>{% elif update.impact == 'negative' %}📉 <span data-translate="market.negativeImpact">Negative Impact</span>{% else %}➡️ <span data-translate="market.neutralImpact">Neutral Impact</span>{% endif %}
                     </span>
-                    {% if update.source %}<span class="tag">Source: {{ update.source }}</span>{% endif %}
+                    {% if update.source %}<span class="tag"><span data-translate="market.source">Source:</span> {{ update.source }}</span>{% endif %}
                 </div>
                 {% if update.author_email == user_email %}
                 <div class="news-actions">
-                    <button class="btn-edit-news" onclick="editMarketUpdate('{{ update._id }}')">✏️ Edit</button>
-                    <button class="btn-delete-news" onclick="deleteMarketUpdate('{{ update._id }}')">🗑️ Delete</button>
+                    <button class="btn-edit-news" onclick="editMarketUpdate('{{ update._id }}')">✏️ <span data-translate="common.edit">Edit</span></button>
+                    <button class="btn-delete-news" onclick="deleteMarketUpdate('{{ update._id }}')">🗑️ <span data-translate="common.delete">Delete</span></button>
                 </div>
                 {% endif %}
             </div>
@@ -173,10 +173,10 @@ setTimeout(() => {
 
     <!-- Market Analysis Section -->
     <div class="market-analysis">
-        <h2>📊 Market Analysis</h2>
+        <h2 data-translate="market.analysis">📊 Market Analysis</h2>
         <div class="analysis-grid">
             <div class="analysis-card">
-                <h3>Price Trends</h3>
+                <h3 data-translate="market.priceTrends">Price Trends</h3>
                 <div class="trend-chart">
                     <div class="chart-placeholder">
                         📈 Price trend chart would be here
@@ -185,19 +185,19 @@ setTimeout(() => {
             </div>
             
             <div class="analysis-card">
-                <h3>Demand Forecast</h3>
+                <h3 data-translate="market.demandForecast">Demand Forecast</h3>
                 <div class="forecast-data">
                     <div class="forecast-item">
                         <span class="crop">Wheat</span>
-                        <span class="forecast">High Demand</span>
+                        <span class="forecast" data-translate="market.highDemand">High Demand</span>
                     </div>
                     <div class="forecast-item">
                         <span class="crop">Rice</span>
-                        <span class="forecast">Stable</span>
+                        <span class="forecast" data-translate="market.stable">Stable</span>
                     </div>
                     <div class="forecast-item">
                         <span class="crop">Tomato</span>
-                        <span class="forecast">Growing</span>
+                        <span class="forecast" data-translate="market.growing">Growing</span>
                     </div>
                 </div>
             </div>
@@ -213,52 +213,52 @@ setTimeout(() => {
     <div class="modal-overlay" id="add-market-modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>📊 Add Market Update</h3>
+                <h3 data-translate="market.addUpdate">📊 Add Market Update</h3>
                 <button class="close-btn" onclick="closeAddMarketModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="add-market-form">
                     <div class="form-group">
-                        <label for="update-title">Update Title</label>
-                        <input type="text" id="update-title" placeholder="Enter update title" required>
+                        <label for="update-title" data-translate="market.updateTitle">Update Title</label>
+                        <input type="text" id="update-title" placeholder="Enter update title" data-translate="market.updateTitlePlaceholder" required>
                     </div>
                     
                     <div class="form-group">
-                        <label for="update-category">Category</label>
+                        <label for="update-category" data-translate="market.updateCategory">Category</label>
                         <select id="update-category" required>
-                            <option value="">Select Category</option>
-                            <option value="price">Price Update</option>
-                            <option value="weather">Weather Impact</option>
-                            <option value="demand">Demand & Supply</option>
-                            <option value="policy">Government Policy</option>
-                            <option value="technology">Technology</option>
-                            <option value="export">Export/Import</option>
-                            <option value="other">Other</option>
+                            <option value="" data-translate="market.selectCategory">Select Category</option>
+                            <option value="price" data-translate="market.priceUpdate">Price Update</option>
+                            <option value="weather" data-translate="market.weatherImpact">Weather Impact</option>
+                            <option value="demand" data-translate="market.demandSupply">Demand & Supply</option>
+                            <option value="policy" data-translate="market.governmentPolicy">Government Policy</option>
+                            <option value="technology" data-translate="market.technology">Technology</option>
+                            <option value="export" data-translate="market.exportImport">Export/Import</option>
+                            <option value="other" data-translate="market.other">Other</option>
                         </select>
                     </div>
                     
                     <div class="form-group">
-                        <label for="update-description">Description</label>
-                        <textarea id="update-description" placeholder="Describe the market update in detail..." rows="4" required></textarea>
+                        <label for="update-description" data-translate="market.description">Description</label>
+                        <textarea id="update-description" placeholder="Describe the market update in detail..." data-translate="market.descriptionPlaceholder" rows="4" required></textarea>
                     </div>
                     
                     <div class="form-group">
-                        <label for="update-impact">Market Impact</label>
+                        <label for="update-impact" data-translate="market.marketImpact">Market Impact</label>
                         <select id="update-impact">
-                            <option value="positive">Positive Impact</option>
-                            <option value="negative">Negative Impact</option>
-                            <option value="neutral">Neutral Impact</option>
+                            <option value="positive" data-translate="market.positiveImpact">Positive Impact</option>
+                            <option value="negative" data-translate="market.negativeImpact">Negative Impact</option>
+                            <option value="neutral" data-translate="market.neutralImpact">Neutral Impact</option>
                         </select>
                     </div>
                     
                     <div class="form-group">
-                        <label for="update-source">Source (Optional)</label>
-                        <input type="text" id="update-source" placeholder="e.g., Government Report, News Agency">
+                        <label for="update-source" data-translate="market.sourceOptional">Source (Optional)</label>
+                        <input type="text" id="update-source" placeholder="e.g., Government Report, News Agency" data-translate="market.sourcePlaceholder">
                     </div>
                     
                     <div class="form-actions">
-                        <button type="button" class="btn-cancel" onclick="closeAddMarketModal()">Cancel</button>
-                        <button type="submit" class="btn-submit">Add Update</button>
+                        <button type="button" class="btn-cancel" onclick="closeAddMarketModal()" data-translate="common.cancel">Cancel</button>
+                        <button type="submit" class="btn-submit" data-translate="market.addUpdateBtn">Add Update</button>
                     </div>
                 </form>
             </div>
@@ -269,14 +269,18 @@ setTimeout(() => {
 <script>
 function refreshNews() {
     const refreshBtn = document.querySelector('.refresh-btn');
-    refreshBtn.textContent = '🔄 Refreshing...';
+    const currentLang = localStorage.getItem('appLanguage') || 'en';
+    const refreshingText = currentLang === 'hi' ? '🔄 ताज़ा हो रहा है...' : '🔄 Refreshing...';
+    const refreshText = currentLang === 'hi' ? '🔄 ताज़ा करें' : '🔄 Refresh';
+    refreshBtn.textContent = refreshingText;
     refreshBtn.disabled = true;
     
     // Simulate API call
     setTimeout(() => {
-        refreshBtn.textContent = '🔄 Refresh';
+        refreshBtn.textContent = refreshText;
         refreshBtn.disabled = false;
-        alert('Market news refreshed!');
+        const alertText = currentLang === 'hi' ? 'बाजार समाचार ताज़ा हो गया!' : 'Market news refreshed!';
+        alert(alertText);
     }, 2000);
 }
 

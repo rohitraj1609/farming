@@ -45,15 +45,15 @@ setTimeout(() => {
     <!-- Page Header -->
     <div class="page-header">
         <div class="header-content">
-            <h1>🌾 Sell Your Crops</h1>
-            <p>List your harvest and connect with buyers</p>
+            <h1 data-translate="sell.title">🌾 Sell Your Crops</h1>
+            <p data-translate="sell.subtitle">List your harvest and connect with buyers</p>
         </div>
     </div>
 
     <!-- Search Bar -->
     <div class="search-container">
         <div class="search-wrapper">
-            <input type="text" placeholder="Search your listings..." class="search-input">
+            <input type="text" placeholder="Search your listings..." class="search-input" data-translate="sell.search">
         </div>
     </div>
 
@@ -62,15 +62,15 @@ setTimeout(() => {
         <div class="action-buttons-container">
             <a href="/market" class="action-btn market-btn">
                 <span class="btn-icon">📊</span>
-                <span class="btn-text">Market Updates</span>
+                <span class="btn-text" data-translate="actions.marketUpdates">Market Updates</span>
             </a>
             <a href="/sell" class="action-btn sell-btn active">
                 <span class="btn-icon">🌾</span>
-                <span class="btn-text">Sell Crops</span>
+                <span class="btn-text" data-translate="actions.sellCrops">Sell Crops</span>
             </a>
             <a href="/buy" class="action-btn buy-btn">
                 <span class="btn-icon">🛒</span>
-                <span class="btn-text">Buy Crops</span>
+                <span class="btn-text" data-translate="actions.buyCrops">Buy Crops</span>
             </a>
         </div>
     </div>
@@ -84,51 +84,51 @@ setTimeout(() => {
                         <span>🌾</span>
                     </div>
                     <div class="user-details">
-                        <h3>List Your Crop</h3>
-                        <p>Sell Your Harvest</p>
+                        <h3 data-translate="sell.listCrop">List Your Crop</h3>
+                        <p data-translate="sell.sellHarvest">Sell Your Harvest</p>
                     </div>
                 </div>
             </div>
             <div class="card-content">
                 <form class="sell-form" id="crop-form">
                     <div class="form-group">
-                        <label for="crop-name">Crop Name</label>
-                        <input type="text" id="crop-name" name="crop-name" placeholder="Enter crop name" required>
+                        <label for="crop-name" data-translate="sell.cropName">Crop Name</label>
+                        <input type="text" id="crop-name" name="crop-name" placeholder="Enter crop name" data-translate="sell.cropNamePlaceholder" required>
                     </div>
                     
                     <div class="form-group">
-                        <label for="category">Category</label>
+                        <label for="category" data-translate="sell.category">Category</label>
                         <select id="category" name="category" required>
-                            <option value="">Select Category</option>
-                            <option value="grains">Grains</option>
-                            <option value="vegetables">Vegetables</option>
-                            <option value="fruits">Fruits</option>
-                            <option value="spices">Spices</option>
+                            <option value="" data-translate="sell.selectCategory">Select Category</option>
+                            <option value="grains" data-translate="buy.grains">Grains</option>
+                            <option value="vegetables" data-translate="buy.vegetables">Vegetables</option>
+                            <option value="fruits" data-translate="buy.fruits">Fruits</option>
+                            <option value="spices" data-translate="buy.spices">Spices</option>
                         </select>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="quantity">Quantity (kg)</label>
-                            <input type="number" id="quantity" name="quantity" placeholder="Enter quantity" required>
+                            <label for="quantity" data-translate="sell.quantity">Quantity (kg)</label>
+                            <input type="number" id="quantity" name="quantity" placeholder="Enter quantity" data-translate="sell.quantityPlaceholder" required>
                         </div>
                         <div class="form-group">
-                            <label for="price">Price per kg (₹)</label>
-                            <input type="number" id="price" name="price" placeholder="Enter price per kg" required>
+                            <label for="price" data-translate="sell.price">Price per kg (₹)</label>
+                            <input type="number" id="price" name="price" placeholder="Enter price per kg" data-translate="sell.pricePlaceholder" required>
                         </div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="location">Farm Location</label>
-                        <input type="text" id="location" name="location" placeholder="Enter your farm location" required>
+                        <label for="location" data-translate="sell.farmLocation">Farm Location</label>
+                        <input type="text" id="location" name="location" placeholder="Enter your farm location" data-translate="sell.locationPlaceholder" required>
                     </div>
                     
                     <div class="form-group">
-                        <label for="description">Description</label>
-                        <textarea id="description" name="description" placeholder="Describe your crop quality, organic status, etc." rows="3"></textarea>
+                        <label for="description" data-translate="sell.description">Description</label>
+                        <textarea id="description" name="description" placeholder="Describe your crop quality, organic status, etc." data-translate="sell.descriptionPlaceholder" rows="3"></textarea>
                     </div>
                     
-                    <button type="submit" class="submit-btn">List My Crop</button>
+                    <button type="submit" class="submit-btn" data-translate="sell.listMyCrop">List My Crop</button>
                 </form>
             </div>
         </div>
@@ -136,42 +136,42 @@ setTimeout(() => {
 
     <!-- My Listings Section -->
     <div class="listings-section">
-        <h2>My Active Listings</h2>
+        <h2 data-translate="sell.myActiveListings">My Active Listings</h2>
         <div class="listings-grid" id="listings-grid">
             {% if user_crops %}
                 {% for crop in user_crops %}
                 <div class="listing-item">
                     <div class="listing-header">
                         <h3>{{ crop.name }}</h3>
-                        <span class="status {% if crop.is_active %}active{% else %}pending{% endif %}">
-                            {% if crop.is_active %}Active{% else %}Inactive{% endif %}
+                        <span class="status {% if crop.is_active %}active{% else %}pending{% endif %}" data-translate="{% if crop.is_active %}sell.active{% else %}sell.inactive{% endif %}">
+                            {% if crop.is_active %}<span data-translate="sell.active">Active</span>{% else %}<span data-translate="sell.inactive">Inactive</span>{% endif %}
                         </span>
                     </div>
                     <div class="listing-details">
-                        <p><strong>Category:</strong> {{ crop.category|title }}</p>
-                        <p><strong>Quantity:</strong> {{ crop.quantity }} kg</p>
-                        <p><strong>Price:</strong> ₹{{ crop.price_per_kg }}/kg</p>
-                        <p><strong>Total Value:</strong> ₹{{ "{:,.0f}".format(crop.total_price) }}</p>
-                        <p><strong>Location:</strong> {{ crop.location }}</p>
-                        <p><strong>Listed:</strong> 
+                        <p><strong data-translate="sell.categoryLabel">Category:</strong> {{ crop.category|title }}</p>
+                        <p><strong data-translate="sell.quantityLabel">Quantity:</strong> {{ crop.quantity }} kg</p>
+                        <p><strong data-translate="sell.priceLabel">Price:</strong> ₹{{ crop.price_per_kg }}/kg</p>
+                        <p><strong data-translate="sell.totalValue">Total Value:</strong> ₹{{ "{:,.0f}".format(crop.total_price) }}</p>
+                        <p><strong data-translate="sell.locationLabel">Location:</strong> {{ crop.location }}</p>
+                        <p><strong data-translate="sell.listedLabel">Listed:</strong> 
                             {% if crop.created_at %}
                                 {{ crop.created_at.strftime('%d %b %Y') }}
                             {% else %}
-                                Recently
+                                <span data-translate="sell.recently">Recently</span>
                             {% endif %}
                         </p>
                     </div>
                     <div class="listing-actions">
-                        <button class="btn-edit" onclick="editCrop('{{ crop._id }}')">Edit</button>
-                        <button class="btn-delete" onclick="deleteCrop('{{ crop._id }}')">Delete</button>
+                        <button class="btn-edit" onclick="editCrop('{{ crop._id }}')" data-translate="common.edit">Edit</button>
+                        <button class="btn-delete" onclick="deleteCrop('{{ crop._id }}')" data-translate="common.delete">Delete</button>
                     </div>
                 </div>
                 {% endfor %}
             {% else %}
                 <div class="no-listings">
                     <div class="no-listings-icon">🌱</div>
-                    <h3>No listings yet</h3>
-                    <p>Create your first crop listing using the form above!</p>
+                    <h3 data-translate="sell.noListings">No listings yet</h3>
+                    <p data-translate="sell.createFirst">Create your first crop listing using the form above!</p>
                 </div>
             {% endif %}
         </div>

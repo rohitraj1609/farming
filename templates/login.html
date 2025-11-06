@@ -5,20 +5,20 @@
 {% block content %}
 <div class="login-page">
     <div class="form-container">
-        <h2 class="form-title">🌱 Login</h2>
+        <h2 class="form-title" data-translate="login.title">🌱 Login</h2>
         
         <form action="/login" method="POST" id="loginForm">
             <div class="form-group">
-                <label class="form-label" for="email">Email Address</label>
-                <input type="email" name="email" id="email" placeholder="Enter your email" required>
+                <label class="form-label" for="email" data-translate="login.email">Email Address</label>
+                <input type="email" name="email" id="email" placeholder="Enter your email" data-translate="login.emailPlaceholder" required>
             </div>
             <div class="form-group">
-                <label class="form-label" for="password">Password</label>
-                <input type="password" name="password" id="password" placeholder="Enter your password" required>
+                <label class="form-label" for="password" data-translate="login.password">Password</label>
+                <input type="password" name="password" id="password" placeholder="Enter your password" data-translate="login.passwordPlaceholder" required>
             </div>
-            <button type="submit">Login to Farming App</button>
+            <button type="submit" data-translate="login.submit">Login to Farming App</button>
         </form>
-        <p style="margin-top: 30px; color: #6c757d;">Don't have an account? <a href="/signup-page" style="color: #28a745; font-weight: bold;">Sign Up</a></p>
+        <p style="margin-top: 30px; color: #6c757d;"><span data-translate="login.noAccount">Don't have an account?</span> <a href="/signup-page" style="color: #28a745; font-weight: bold;" data-translate="login.signUp">Sign Up</a></p>
     </div>
 </div>
 {% endblock %}

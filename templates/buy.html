@@ -45,15 +45,15 @@ setTimeout(() => {
     <!-- Page Header -->
     <div class="page-header">
         <div class="header-content">
-            <h1>🛒 Buy Crops</h1>
-            <p>Find and purchase fresh crops from local farmers</p>
+            <h1 data-translate="buy.title">🛒 Buy Crops</h1>
+            <p data-translate="buy.subtitle">Find and purchase fresh crops from local farmers</p>
         </div>
     </div>
 
     <!-- Search Bar -->
     <div class="search-container">
         <div class="search-wrapper">
-            <input type="text" placeholder="Search crops to buy..." class="search-input">
+            <input type="text" placeholder="Search crops to buy..." class="search-input" data-translate="buy.search">
         </div>
     </div>
 
@@ -62,15 +62,15 @@ setTimeout(() => {
         <div class="action-buttons-container">
             <a href="/market" class="action-btn market-btn">
                 <span class="btn-icon">📊</span>
-                <span class="btn-text">Market Updates</span>
+                <span class="btn-text" data-translate="actions.marketUpdates">Market Updates</span>
             </a>
             <a href="/sell" class="action-btn sell-btn">
                 <span class="btn-icon">🌾</span>
-                <span class="btn-text">Sell Crops</span>
+                <span class="btn-text" data-translate="actions.sellCrops">Sell Crops</span>
             </a>
             <a href="/buy" class="action-btn buy-btn active">
                 <span class="btn-icon">🛒</span>
-                <span class="btn-text">Buy Crops</span>
+                <span class="btn-text" data-translate="actions.buyCrops">Buy Crops</span>
             </a>
         </div>
     </div>
@@ -79,20 +79,20 @@ setTimeout(() => {
     <div class="filter-section">
         <div class="filter-container">
             <div class="filter-group">
-                <label>Category:</label>
+                <label data-translate="buy.category">Category:</label>
                 <select id="category-filter">
-                    <option value="">All Crops</option>
-                    <option value="grains">Grains</option>
-                    <option value="vegetables">Vegetables</option>
-                    <option value="fruits">Fruits</option>
-                    <option value="spices">Spices</option>
+                    <option value="" data-translate="buy.allCrops">All Crops</option>
+                    <option value="grains" data-translate="buy.grains">Grains</option>
+                    <option value="vegetables" data-translate="buy.vegetables">Vegetables</option>
+                    <option value="fruits" data-translate="buy.fruits">Fruits</option>
+                    <option value="spices" data-translate="buy.spices">Spices</option>
                 </select>
             </div>
             
             <div class="filter-group">
-                <label>Price Range:</label>
+                <label data-translate="buy.priceRange">Price Range:</label>
                 <select id="price-filter">
-                    <option value="">Any Price</option>
+                    <option value="" data-translate="buy.anyPrice">Any Price</option>
                     <option value="0-25">₹0 - ₹25/kg</option>
                     <option value="25-50">₹25 - ₹50/kg</option>
                     <option value="50-100">₹50 - ₹100/kg</option>
@@ -101,9 +101,9 @@ setTimeout(() => {
             </div>
             
             <div class="filter-group">
-                <label>Location:</label>
+                <label data-translate="buy.location">Location:</label>
                 <select id="location-filter">
-                    <option value="">All Locations</option>
+                    <option value="" data-translate="buy.allLocations">All Locations</option>
                     <option value="punjab">Punjab</option>
                     <option value="haryana">Haryana</option>
                     <option value="maharashtra">Maharashtra</option>
@@ -111,19 +111,19 @@ setTimeout(() => {
                 </select>
             </div>
             
-            <button class="filter-btn" onclick="applyFilters()">Apply Filters</button>
+            <button class="filter-btn" onclick="applyFilters()" data-translate="buy.applyFilters">Apply Filters</button>
         </div>
     </div>
 
     <!-- Crop Listings -->
     <div class="crop-listings">
-        <h2>Available Crops</h2>
+        <h2 data-translate="buy.availableCrops">Available Crops</h2>
         <div class="listings-grid">
             {% if crops %}
                 {% for crop in crops %}
                 <div class="crop-card {% if crop.seller_email == user_email %}own-listing{% endif %}">
                     {% if crop.seller_email == user_email %}
-                    <div class="listing-badge">Your Listing</div>
+                    <div class="listing-badge" data-translate="buy.yourListing">Your Listing</div>
                     {% endif %}
                     <div class="crop-image">
                         <span class="crop-icon">
@@ -137,31 +137,31 @@ setTimeout(() => {
                     </div>
                     <div class="crop-info">
                         <h3>{{ crop.name }}</h3>
-                        <p class="farmer">By: {{ crop.seller_name }}</p>
+                        <p class="farmer"><span data-translate="buy.by">By:</span> {{ crop.seller_name }}</p>
                         <p class="location">📍 {{ crop.location }}</p>
                         <div class="crop-details">
-                            <span class="quantity">{{ crop.quantity }} kg available</span>
+                            <span class="quantity">{{ crop.quantity }} <span data-translate="buy.kgAvailable">kg available</span></span>
                             <span class="harvest-date">
                                 {% if crop.created_at %}
-                                    Listed: {{ crop.created_at.strftime('%d %b %Y') }}
+                                    <span data-translate="buy.listed">Listed:</span> {{ crop.created_at.strftime('%d %b %Y') }}
                                 {% else %}
-                                    Recently listed
+                                    <span data-translate="buy.recentlyListed">Recently listed</span>
                                 {% endif %}
                             </span>
                         </div>
                         <div class="price-section">
                             <span class="price">₹{{ crop.price_per_kg }}/kg</span>
-                            <span class="total-price">Total: ₹{{ "{:,.0f}".format(crop.total_price) }}</span>
+                            <span class="total-price"><span data-translate="buy.total">Total:</span> ₹{{ "{:,.0f}".format(crop.total_price) }}</span>
                         </div>
                         <div class="crop-actions">
                             {% if crop.seller_email == user_email %}
                                 <!-- Show edit/delete buttons for own listings -->
-                                <button class="btn-edit" onclick="editCrop('{{ crop._id }}')">✏️ Edit</button>
-                                <button class="btn-delete" onclick="deleteCrop('{{ crop._id }}')">🗑️ Delete</button>
+                                <button class="btn-edit" onclick="editCrop('{{ crop._id }}')">✏️ <span data-translate="buy.edit">Edit</span></button>
+                                <button class="btn-delete" onclick="deleteCrop('{{ crop._id }}')">🗑️ <span data-translate="buy.delete">Delete</span></button>
                             {% else %}
                                 <!-- Show buy/contact buttons for other users' listings -->
-                                <button class="btn-contact" onclick="contactSeller('{{ crop.seller_phone }}', '{{ crop.name }}')">📞 Contact Seller</button>
-                                <button class="btn-buy" onclick="buyCrop('{{ crop._id }}')">🛒 Buy Now</button>
+                                <button class="btn-contact" onclick="contactSeller('{{ crop.seller_phone }}', '{{ crop.name }}')">📞 <span data-translate="buy.contactSeller">Contact Seller</span></button>
+                                <button class="btn-buy" onclick="buyCrop('{{ crop._id }}')">🛒 <span data-translate="buy.buyNow">Buy Now</span></button>
                             {% endif %}
                         </div>
                     </div>
@@ -170,8 +170,8 @@ setTimeout(() => {
             {% else %}
                 <div class="no-crops">
                     <div class="no-crops-icon">🌱</div>
-                    <h3>No crops available</h3>
-                    <p>Check back later for new crop listings!</p>
+                    <h3 data-translate="buy.noCrops">No crops available</h3>
+                    <p data-translate="buy.checkBack">Check back later for new crop listings!</p>
                 </div>
             {% endif %}
         </div>

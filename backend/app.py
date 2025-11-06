@@ -5,18 +5,35 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import re
 import sys
+import uuid
 from datetime import datetime
 from dotenv import load_dotenv
 
 # Add parent directory to path for utils import
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import setup_logger, log_startup, log_success, log_error, log_warning, log_info
+from utils.chatbot_prompt import get_system_prompt, get_user_prompt_template, validate_response_for_hallucination
+
+# Import Ollama for local LLM
+try:
+    import ollama
+    OLLAMA_AVAILABLE = True
+except ImportError:
+    OLLAMA_AVAILABLE = False
+    # Will log warning after logger is initialized
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Setup logger
 logger = setup_logger("FarmingApp")
+
+# Log Ollama availability status
+if not OLLAMA_AVAILABLE:
+    log_warning("Ollama not installed. Chatbot will use fallback responses. Install with: pip install ollama")
+
+# Chatbot session storage (in-memory, stores conversation history per session)
+chatbot_sessions = {}  # Format: {session_id: [{"role": "user", "content": "message"}, {"role": "assistant", "content": "response"}, ...]}
 
 app = Flask(__name__, template_folder='../templates')
 
@@ -215,7 +232,7 @@ def styles():
         current_dir = os.path.dirname(os.path.abspath(__file__))
         css_path = os.path.join(current_dir, '..', 'webpage', 'styles.css')
         
-        with open(css_path, 'r') as f:
+        with open(css_path, 'r', encoding='utf-8') as f:
             css_content = f.read()
         return css_content, 200, {'Content-Type': 'text/css'}
     except FileNotFoundError:
@@ -236,7 +253,7 @@ def script():
         current_dir = os.path.dirname(os.path.abspath(__file__))
         js_path = os.path.join(current_dir, '..', 'webpage', 'script.js')
         
-        with open(js_path, 'r') as f:
+        with open(js_path, 'r', encoding='utf-8') as f:
             js_content = f.read()
         logger.info("Serving JavaScript file")
         return js_content, 200, {'Content-Type': 'application/javascript'}
@@ -252,7 +269,7 @@ def static_js(filename):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         js_path = os.path.join(current_dir, '..', 'static', 'js', filename)
         
-        with open(js_path, 'r') as f:
+        with open(js_path, 'r', encoding='utf-8') as f:
             js_content = f.read()
         logger.info(f"Serving static JavaScript file: {filename}")
         return js_content, 200, {'Content-Type': 'application/javascript'}
@@ -824,6 +841,7 @@ def login():
                 session['user_id'] = str(user['_id'])
                 session['email'] = user['email']
                 session['phone'] = user.get('phone', '')
+                session['username'] = user.get('username', user['email'])
                 session['profile'] = user.get('profile', {})
                 flash('🎉 Login successful! Welcome back!', 'success')
                 logger.info(f"✅ User {email} logged in successfully, redirecting to booking page")
@@ -899,10 +917,18 @@ def signup():
         logger.info(f"Creating user: {email}")
         logger.info(f"Hashed password: {hashed_password[:20]}...")
         
+        # Generate a unique username if email is already taken as username
+        username = email
+        counter = 1
+        while users_collection.find_one({'username': username}):
+            username = f"{email}_{counter}"
+            counter += 1
+        
         user_data = {
             'email': email,
             'phone': phone,
             'password': hashed_password,
+            'username': username,
             'created_at': datetime.utcnow(),
             'last_login': None,
             'is_active': True,
@@ -919,6 +945,7 @@ def signup():
             session['user_id'] = str(result.inserted_id)
             session['email'] = email
             session['phone'] = phone
+            session['username'] = username
             session['profile'] = user_data['profile']
             flash('🎉 Account created successfully! Please complete your profile.', 'success')
             logger.info(f"✅ New user registered successfully: {email} ({phone})")
@@ -937,6 +964,8 @@ def signup():
             flash('❌ This email is already registered. Please use a different email or try logging in.', 'error')
         elif "E11000" in error_msg and "phone" in error_msg:
             flash('❌ This phone number is already registered. Please use a different phone number.', 'error')
+        elif "E11000" in error_msg and "username" in error_msg:
+            flash('❌ This email is already registered as a username. Please try logging in instead.', 'error')
         elif "E11000" in error_msg:
             flash('❌ Account already exists with this information. Please try logging in instead.', 'error')
         else:
@@ -990,6 +1019,194 @@ def api_users():
     
     return jsonify(users)
 
+# Chatbot API Route with Chain-of-Thought Reasoning
+@app.route('/api/chatbot', methods=['POST'])
+def api_chatbot():
+    """Chatbot endpoint using local LLM with chain-of-thought reasoning"""
+    try:
+        data = request.get_json()
+        user_message = data.get('message', '').strip()
+        session_id = data.get('session_id', None)
+        history = data.get('history', [])
+        
+        if not user_message:
+            return jsonify({"success": False, "error": "Message is required"}), 400
+        
+        # Create new session if session_id is not provided
+        if not session_id:
+            session_id = f"chat_{uuid.uuid4().hex[:16]}"
+            logger.info(f"Created new chat session: {session_id}")
+        
+        # Initialize session if it doesn't exist
+        if session_id not in chatbot_sessions:
+            chatbot_sessions[session_id] = []
+            logger.info(f"Initialized new session storage for: {session_id}")
+        
+        # Get conversation history from session storage
+        session_history = chatbot_sessions[session_id]
+        
+        # Use provided history if available, otherwise use session history
+        if not history and session_history:
+            # Convert session history to the format expected by LLM
+            history = []
+            for msg in session_history[-10:]:  # Last 10 messages
+                if msg.get('role') == 'user':
+                    history.append({'user': msg.get('content', ''), 'assistant': ''})
+                elif msg.get('role') == 'assistant':
+                    if history and history[-1].get('user'):
+                        history[-1]['assistant'] = msg.get('content', '')
+                    else:
+                        history.append({'user': '', 'assistant': msg.get('content', '')})
+        
+        # Check if Ollama is available
+        if not OLLAMA_AVAILABLE:
+            return jsonify({
+                "success": False,
+                "error": "Ollama is not installed. Please install it: pip install ollama",
+                "response": "I'm sorry, the AI assistant is not available. Please install Ollama to enable AI features."
+            }), 503
+        
+        # Get system prompt from separate file
+        system_prompt = get_system_prompt()
+        
+        # Add context about available data sources
+        context_info = ""
+        
+        # Check if we have crops in database to reference
+        try:
+            available_crops = get_crops()
+            if available_crops:
+                crop_names = list(set([c.get('name', '') for c in available_crops[:10] if c.get('name')]))
+                if crop_names:
+                    context_info = f"\n\nNote: The platform currently has listings for: {', '.join(crop_names[:5])}. "
+                    context_info += "When users ask about specific crops, you can mention checking the Buy Crops page for current listings."
+        except:
+            pass  # If database query fails, continue without context
+        
+        # Add market updates context if available
+        try:
+            market_updates = get_market_updates()
+            if market_updates:
+                context_info += f"\nThere are {len(market_updates)} market updates available. Direct users to the Market Updates page for current information."
+        except:
+            pass
+        
+        # Combine system prompt with context
+        full_system_prompt = system_prompt + context_info
+
+        # Build conversation messages for Ollama (using session history)
+        messages = [{'role': 'system', 'content': full_system_prompt}]
+        
+        # Add conversation history from session storage
+        if session_history:
+            # Convert session history to Ollama message format
+            for msg in session_history[-10:]:  # Last 10 messages for context
+                if msg.get('role') in ['user', 'assistant']:
+                    messages.append({
+                        'role': msg['role'],
+                        'content': msg.get('content', '')
+                    })
+        
+        # Add current user message with chain-of-thought instruction
+        user_prompt_template = get_user_prompt_template()
+        messages.append({
+            'role': 'user',
+            'content': user_prompt_template.format(user_message=user_message)
+        })
+        
+        # Get model name from environment or use default
+        model_name = os.getenv('OLLAMA_MODEL', 'llama3.2')
+        
+        try:
+            # Call Ollama with chain-of-thought reasoning and full conversation history
+            response = ollama.chat(
+                model=model_name,
+                messages=messages,
+                options={
+                    'temperature': 0.7,  # Slightly higher for more detailed, comprehensive responses
+                    'top_p': 0.9,
+                    'num_predict': 2000  # Increased limit for detailed, comprehensive responses
+                }
+            )
+            
+            bot_response = response['message']['content'].strip()
+            
+            # Validate response for potential hallucinations
+            is_valid, warning = validate_response_for_hallucination(bot_response)
+            if not is_valid and warning:
+                logger.warning(f"Potential hallucination detected in response: {warning}")
+                # Add a disclaimer to the response
+                disclaimer = "\n\n> **Note:** For current market prices and specific data, please check the Market Updates page."
+                if disclaimer not in bot_response:
+                    bot_response += disclaimer
+            
+            # Preserve markdown formatting - don't remove markdown symbols
+            # Only clean up excessive spaces (3+ spaces) but preserve markdown structure
+            # Split by newlines to preserve structure
+            lines = bot_response.split('\n')
+            cleaned_lines = []
+            for line in lines:
+                # Clean up excessive spaces (3+ spaces) but keep markdown formatting
+                cleaned_line = re.sub(r' {3,}', ' ', line)
+                # Don't strip the line completely - preserve leading spaces for code blocks
+                if cleaned_line.strip():  # Only add non-empty lines
+                    cleaned_lines.append(cleaned_line)
+                elif cleaned_line == '':  # Preserve empty lines for paragraph breaks
+                    cleaned_lines.append('')
+            
+            # Rejoin with newlines to preserve markdown structure
+            bot_response = '\n'.join(cleaned_lines)
+            bot_response = bot_response.strip()
+            
+            # Store conversation in session history
+            chatbot_sessions[session_id].append({
+                'role': 'user',
+                'content': user_message,
+                'timestamp': datetime.utcnow().isoformat()
+            })
+            chatbot_sessions[session_id].append({
+                'role': 'assistant',
+                'content': bot_response,
+                'timestamp': datetime.utcnow().isoformat()
+            })
+            
+            # Limit session history to last 50 messages to prevent memory issues
+            if len(chatbot_sessions[session_id]) > 50:
+                chatbot_sessions[session_id] = chatbot_sessions[session_id][-50:]
+            
+            logger.info(f"Chatbot response generated successfully for session: {session_id}")
+            return jsonify({
+                "success": True,
+                "response": bot_response,
+                "session_id": session_id
+            })
+            
+        except Exception as ollama_error:
+            logger.error(f"Ollama error: {ollama_error}")
+            
+            # Check if Ollama service is running
+            if "connection" in str(ollama_error).lower() or "refused" in str(ollama_error).lower():
+                return jsonify({
+                    "success": False,
+                    "error": "Ollama service is not running",
+                    "response": "I'm sorry, the AI service is not running. Please make sure Ollama is installed and running. You can start it by running 'ollama serve' in your terminal."
+                }), 503
+            
+            # Fallback response
+            return jsonify({
+                "success": False,
+                "error": str(ollama_error),
+                "response": "I'm having trouble processing your request right now. Please try again in a moment."
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Chatbot API error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "response": "I'm sorry, I encountered an error. Please try again."
+        }), 500
+
 if __name__ == '__main__':
     # Show startup banner
     log_startup()
@@ -1000,12 +1217,25 @@ if __name__ == '__main__':
         try:
             users_collection.drop_index("username_1")
             log_info("Dropped old username index")
-        except:
-            pass  # Index doesn't exist, that's fine
+        except Exception as e:
+            log_info(f"Username index drop result: {e}")
+        
+        # Clean up existing users with null usernames
+        try:
+            result = users_collection.update_many(
+                {"username": None},
+                {"$set": {"username": "$email"}}
+            )
+            if result.modified_count > 0:
+                log_info(f"Updated {result.modified_count} users with null usernames")
+        except Exception as e:
+            log_warning(f"Error updating null usernames: {e}")
         
         # Create new indexes
         users_collection.create_index("email", unique=True)
         users_collection.create_index("phone", unique=True)
+        # Create username index with sparse option to allow null values
+        users_collection.create_index("username", unique=True, sparse=True)
         log_success("Database indexes created successfully")
     except Exception as e:
         log_warning(f"Index creation warning: {e}")

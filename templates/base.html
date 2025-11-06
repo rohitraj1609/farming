@@ -6,23 +6,28 @@
     <title>{% block title %}Farming App{% endblock %}</title>
     <link rel="stylesheet" href="/styles.css">
     <script src="/script.js"></script>
+    <script src="{{ url_for('static', filename='js/translation.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
 </head>
 <body>
     <!-- Navigation Header -->
     <nav>
         <div class="nav-container">
             <div class="nav-brand">
-                <h1>🌱 Farming App</h1>
-                <p>Agricultural Management Platform</p>
+                <h1>🌱 <span data-translate="app.brand">Farming App</span></h1>
+                <p data-translate="app.tagline">Agricultural Management Platform</p>
             </div>
             <div class="nav-links">
-                <a href="/" class="nav-link">Home</a>
-                <a href="/login-page" class="nav-link" id="login-nav-link">Login</a>
-                <a href="/signup-page" class="nav-link" id="signup-nav-link">Sign Up</a>
-                <a href="/about" class="nav-link">About Us</a>
-                <a href="#" class="nav-link" onclick="shareApp(); return false;" style="background: linear-gradient(45deg, #4CAF50, #45a049); color: white; border-radius: 5px;">📤 Share</a>
-                <a href="/logout" class="nav-link logout-btn" id="logout-nav-link" style="display: none;">Logout</a>
+                <a href="/" class="nav-link" data-translate="nav.home">Home</a>
+                <a href="/login-page" class="nav-link" id="login-nav-link" data-translate="nav.login">Login</a>
+                <a href="/signup-page" class="nav-link" id="signup-nav-link" data-translate="nav.signup">Sign Up</a>
+                <a href="/about" class="nav-link" data-translate="nav.about">About Us</a>
+                <button id="lang-toggle-btn" class="nav-link lang-toggle-btn" onclick="toggleLanguage(); return false;" title="Switch Language"></button>
+                <a href="#" class="nav-link" onclick="shareApp(); return false;" style="background: linear-gradient(45deg, #4CAF50, #45a049); color: white; border-radius: 5px;" data-translate="nav.share">📤 Share</a>
+                <a href="/logout" class="nav-link logout-btn" id="logout-nav-link" style="display: none;" data-translate="nav.logout">Logout</a>
                 
                 <!-- Profile Dropdown (shown when logged in) -->
                 <div class="profile-dropdown" id="profile-dropdown" style="display: none;">
@@ -45,24 +50,24 @@
                         <div class="profile-actions">
                             <a href="#" class="profile-action" onclick="showProfileSettings()">
                                 <span class="action-icon">👤</span>
-                                <span>Profile Settings</span>
+                                <span data-translate="nav.profileSettings">Profile Settings</span>
                             </a>
                             <a href="#" class="profile-action" onclick="showAccountSettings()">
                                 <span class="action-icon">⚙️</span>
-                                <span>Account Settings</span>
+                                <span data-translate="nav.accountSettings">Account Settings</span>
                             </a>
                             <a href="#" class="profile-action" onclick="showMyListings()">
                                 <span class="action-icon">📊</span>
-                                <span>My Listings</span>
+                                <span data-translate="nav.myListings">My Listings</span>
                             </a>
                             <a href="#" class="profile-action" onclick="shareApp()">
                                 <span class="action-icon">📤</span>
-                                <span>Share App</span>
+                                <span data-translate="nav.shareApp">Share App</span>
                             </a>
                             <div class="profile-divider"></div>
                             <a href="#" class="profile-action logout-action" onclick="confirmLogout()">
                                 <span class="action-icon">🚪</span>
-                                <span>Logout</span>
+                                <span data-translate="nav.logout">Logout</span>
                             </a>
                         </div>
                     </div>
@@ -174,6 +179,38 @@
                 <div class="listings-grid" id="modal-listings-grid">
                     <!-- Listings will be loaded here -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chatbot Widget -->
+    <div id="chatbot-container">
+        <!-- Chatbot Button -->
+        <button id="chatbot-button" class="chatbot-button" title="Chat with Farming Assistant">
+            <span class="chatbot-icon">💬</span>
+            <span class="chatbot-badge" id="chatbot-badge" style="display: none;">1</span>
+        </button>
+
+        <!-- Chatbot Window -->
+        <div id="chatbot-window" class="chatbot-window" style="display: none;">
+            <div class="chatbot-header">
+                <div class="chatbot-header-info">
+                    <div class="chatbot-avatar">🌱</div>
+                    <div class="chatbot-header-text">
+                        <h3 data-translate="chatbot.title">Farming Assistant</h3>
+                        <p data-translate="chatbot.online">Online</p>
+                    </div>
+                </div>
+                <button id="chatbot-close" class="chatbot-close">×</button>
+            </div>
+            <div id="chatbot-messages" class="chatbot-messages">
+                <!-- Messages will be added here -->
+            </div>
+            <div class="chatbot-input-container">
+                <input type="text" id="chatbot-input" class="chatbot-input" placeholder="Ask me about farming, crops, or the app..." data-translate="chatbot.placeholder">
+                <button id="chatbot-send" class="chatbot-send">
+                    <span>➤</span>
+                </button>
             </div>
         </div>
     </div>
