@@ -501,7 +501,8 @@ function translatePage() {
         } else if (element.tagName === 'BUTTON' || element.tagName === 'A') {
             // For buttons and links, preserve emojis if present
             const originalText = element.textContent;
-            const emojiMatch = originalText.match(/[🚀📖🌱📤⚙️👤📊🚪🛒🌾📊📈🌽🍅🥕]/);
+            // Extended emoji regex to include all emojis used in the app
+            const emojiMatch = originalText.match(/[🚀📖🌱📤⚙️👤📊🚪🛒🌾📈🌽🍅🥕💬🔄📉➡️✏️🗑️👤]/);
             if (emojiMatch) {
                 element.innerHTML = `${emojiMatch[0]} ${translation}`;
             } else {
@@ -510,10 +511,15 @@ function translatePage() {
         } else {
             // For other elements, check if they contain emojis
             const originalHTML = element.innerHTML;
-            const emojiMatch = originalHTML.match(/[🚀📖🌱📤⚙️👤📊🚪🛒🌾📊📈🌽🍅🥕💬]/);
+            // Extended emoji regex to include all emojis used in the app
+            const emojiMatch = originalHTML.match(/[🚀📖🌱📤⚙️👤📊🚪🛒🌾📈🌽🍅🥕💬🔄📉➡️✏️🗑️👤]/);
             // Special handling for page headers with emojis
             if (element.tagName === 'H1' && (key === 'buy.title' || key === 'sell.title' || key === 'market.title')) {
                 const emoji = key === 'buy.title' ? '🛒' : key === 'sell.title' ? '🌾' : '📊';
+                element.innerHTML = `${emoji} ${translation}`;
+            } else if (element.tagName === 'H2' && (key === 'market.latestNews' || key === 'market.analysis')) {
+                // Special handling for H2 headings with emojis
+                const emoji = key === 'market.latestNews' ? '📈' : '📊';
                 element.innerHTML = `${emoji} ${translation}`;
             } else if (emojiMatch && !originalHTML.includes('<span') && !originalHTML.includes('<div')) {
                 element.innerHTML = `${emojiMatch[0]} ${translation}`;
@@ -677,10 +683,27 @@ function translatePageContent() {
         sellTitle.innerHTML = `🌾 ${t('sell.title')}`;
     }
     
-    // Market page - preserve emoji
+    // Market page - preserve emojis
     const marketTitle = document.querySelector('.page-header h1[data-translate="market.title"]');
     if (marketTitle) {
         marketTitle.innerHTML = `📊 ${t('market.title')}`;
+    }
+    
+    // Market page H2 headings - preserve emojis
+    const latestNewsHeading = document.querySelector('h2[data-translate="market.latestNews"]');
+    if (latestNewsHeading) {
+        latestNewsHeading.innerHTML = `📈 ${t('market.latestNews')}`;
+    }
+    
+    const marketAnalysisHeading = document.querySelector('h2[data-translate="market.analysis"]');
+    if (marketAnalysisHeading) {
+        marketAnalysisHeading.innerHTML = `📊 ${t('market.analysis')}`;
+    }
+    
+    // Refresh button - preserve emoji
+    const refreshBtn = document.querySelector('.refresh-btn[data-translate="market.refresh"]');
+    if (refreshBtn) {
+        refreshBtn.innerHTML = `🔄 ${t('market.refresh')}`;
     }
     
     // Chatbot

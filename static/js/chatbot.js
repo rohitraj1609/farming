@@ -176,7 +176,7 @@ function toggleChatbot(e) {
 
 // Add welcome message
 function addWelcomeMessage() {
-    const greeting = "Hello! 🌱 I'm your AI farming assistant powered by advanced language models. I use chain-of-thought reasoning to provide you with the best farming advice. How can I help you today?";
+    const greeting = "Hello! 🌱 I'm AgriBot, your AI farming assistant powered by advanced language models. I use chain-of-thought reasoning to provide you with the best farming advice. How can I help you today?";
     addMessage('bot', greeting);
 }
 

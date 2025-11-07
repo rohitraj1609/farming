@@ -272,12 +272,12 @@ function refreshNews() {
     const currentLang = localStorage.getItem('appLanguage') || 'en';
     const refreshingText = currentLang === 'hi' ? '🔄 ताज़ा हो रहा है...' : '🔄 Refreshing...';
     const refreshText = currentLang === 'hi' ? '🔄 ताज़ा करें' : '🔄 Refresh';
-    refreshBtn.textContent = refreshingText;
+    refreshBtn.innerHTML = refreshingText;
     refreshBtn.disabled = true;
     
     // Simulate API call
     setTimeout(() => {
-        refreshBtn.textContent = refreshText;
+        refreshBtn.innerHTML = refreshText;
         refreshBtn.disabled = false;
         const alertText = currentLang === 'hi' ? 'बाजार समाचार ताज़ा हो गया!' : 'Market news refreshed!';
         alert(alertText);

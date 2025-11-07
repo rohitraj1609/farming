@@ -1019,6 +1019,273 @@ def api_users():
     
     return jsonify(users)
 
+def detect_language(text):
+    """
+    Detects the language of the user's message.
+    Returns: 'en' (English), 'hi' (Hindi), or 'hinglish' (Hinglish)
+    
+    Special handling:
+    - If message is ONLY a greeting, detect the language of the greeting itself
+    - If message contains greeting + other content, detect language from non-greeting part
+    """
+    if not text:
+        return 'en'  # Default to English
+    
+    # English greetings (40)
+    english_greetings = [
+        'hello', 'hi', 'hey', 'greetings', 'goodbye', 'bye', 'farewell', 'later', 'adieu', 'welcome',
+        'good morning', 'good afternoon', 'good evening', 'morning', 'afternoon', 'evening',
+        'good day', 'good night', 'have a good one', 'safe travels',
+        'hiya', 'howdy', 'yo', 'sup', 'what\'s up', 'cheers', 'g\'day', 'alright', 
+        'mate', 'man', 'dude', 'boss', 'chief', 'buddy', 'catch ya',
+        'dear', 'respectfully', 'my respects', 'how do you do', 'to whom it may concern',
+        'kind regards', 'blessings', 'salutations'
+    ]
+    
+    # Hindi greetings (30) - in transliteration
+    hindi_greetings = [
+        'namaste', 'namaskar', 'pranam', 'suprabhaat', 'shubh apraahna', 'shubh sandhya',
+        'shubh raatri', 'swagat', 'aaiye', 'vidai', 'alvida', 'phir milenge',
+        'dhanyavaad', 'shukriya', 'kshama', 'maaf karna', 'kripya',
+        'jai shri ram', 'radhe radhe', 'jai hind', 'sat sri akaal',
+        'as-salaam-alaikum', 'aadab', 'bhai', 'behan', 'mitra', 'mubarak',
+        'padhariye', 'kushal mangal', 'ram ram'
+    ]
+    
+    # Hinglish greetings (30)
+    hinglish_greetings = [
+        'hello yaar', 'hi bhai', 'kya up', 'good', 'bye milte hain', 'chal bye',
+        'haan boss', 'achcha okay', 'morning ji', 'everything is theek',
+        'what chal raha hai', 'aur', 'same to same', 'thora busy', 'sab cool',
+        'chalo party', 'take care phir', 'thanks yaar', 'absolutely boss',
+        'hota hai', 'oh waah', 'pakka', 'no worries bhai', 'kya scene hai',
+        'long time no see', 'i am coming', 'you going na', 'done hai', 'just chill',
+        'bye for now', 'kaise ho', 'kaise hain', 'kya haal hai', 'kya chal raha hai'
+    ]
+    
+    # Combined list for checking
+    all_greetings = english_greetings + hindi_greetings + hinglish_greetings
+    
+    # Normalize text for comparison
+    text_lower = text.lower().strip()
+    
+    # Check if message is ONLY a greeting (with optional punctuation)
+    text_for_check = re.sub(r'[^\w\s]', '', text_lower)  # Remove punctuation
+    words = text_for_check.split()
+    
+    # Check if all words are greetings
+    is_only_greeting = False
+    greeting_language = None
+    
+    if len(words) <= 4:  # Greetings are usually short (1-4 words)
+        # Check if the entire phrase matches a greeting
+        phrase = ' '.join(words)
+        
+        # Check against multi-word greetings first
+        if phrase in hinglish_greetings:
+            is_only_greeting = True
+            greeting_language = 'hinglish'
+        elif phrase in hindi_greetings:
+            is_only_greeting = True
+            greeting_language = 'hi'
+        elif phrase in english_greetings:
+            is_only_greeting = True
+            greeting_language = 'en'
+        else:
+            # Check individual words
+            all_greetings = True
+            has_english_greeting = False
+            has_hindi_greeting = False
+            has_hinglish_greeting = False
+            
+            for word in words:
+                if len(word) <= 2:  # Skip very short words
+                    continue
+                if word in english_greetings:
+                    has_english_greeting = True
+                elif word in hindi_greetings:
+                    has_hindi_greeting = True
+                elif word in hinglish_greetings:
+                    has_hinglish_greeting = True
+                else:
+                    all_greetings = False
+                    break
+            
+            if all_greetings:
+                is_only_greeting = True
+                # Determine language based on greeting type found
+                if has_hinglish_greeting:
+                    greeting_language = 'hinglish'
+                elif has_hindi_greeting:
+                    greeting_language = 'hi'
+                elif has_english_greeting:
+                    greeting_language = 'en'
+                else:
+                    greeting_language = 'en'  # Default
+    
+    # If it's only a greeting, return the language of the greeting
+    if is_only_greeting and greeting_language:
+        logger.info(f"Message detected as greeting only: '{text}' - detected language: {greeting_language}")
+        return greeting_language
+    
+    # If message contains greeting + other content, remove greeting words and detect from remaining text
+    remaining_words = []
+    for word in words:
+        clean_word = re.sub(r'[^\w\u0900-\u097F]', '', word.lower())
+        if clean_word and clean_word not in all_greetings:
+            # Also check if it's part of a multi-word greeting
+            is_greeting_word = False
+            for greeting in all_greetings:
+                if clean_word in greeting.split():
+                    is_greeting_word = True
+                    break
+            if not is_greeting_word:
+                remaining_words.append(word)
+    
+    # If we have remaining words after removing greetings, use those for detection
+    if remaining_words:
+        text_for_detection = ' '.join(remaining_words)
+        logger.info(f"Message contains greeting + content. Detecting from: '{text_for_detection}'")
+    else:
+        # If no remaining words (shouldn't happen, but fallback)
+        text_for_detection = text
+    
+    # Check for Devanagari script (Hindi characters)
+    devanagari_pattern = re.compile(r'[\u0900-\u097F]')
+    has_hindi = bool(devanagari_pattern.search(text_for_detection))
+    
+    # Check for English characters (letters)
+    english_pattern = re.compile(r'[a-zA-Z]')
+    has_english = bool(english_pattern.search(text_for_detection))
+    
+    # Count words in the detection text
+    detection_words = text_for_detection.split()
+    hindi_words = 0
+    english_words = 0
+    
+    for word in detection_words:
+        # Remove punctuation for checking
+        clean_word = re.sub(r'[^\w\u0900-\u097F]', '', word)
+        if not clean_word:
+            continue
+        
+        if devanagari_pattern.search(clean_word):
+            hindi_words += 1
+        elif english_pattern.search(clean_word):
+            english_words += 1
+    
+    # Determine language
+    if has_hindi and has_english:
+        return 'hinglish'
+    elif has_hindi:
+        return 'hi'
+    else:
+        return 'en'  # Default to English if no Hindi detected
+
+def clean_instruction_leakage(text):
+    """
+    Removes instruction-like text, meta-commentary, or parenthetical explanations that might leak from prompts.
+    """
+    if not text:
+        return text
+    
+    # Patterns to remove (instruction-like phrases and parenthetical notes)
+    patterns_to_remove = [
+        r'\([^)]*(?:check|respond|guide|instruction|language|accordingly|please|tell me)[^)]*\)',
+        r'\([^)]*(?:I am|I\'m) an? [^)]*assistant[^)]*\)',
+        r'\([^)]*(?:Please|please)[^)]*(?:guide|check|respond|tell)[^)]*\)',
+        r'Check the user\'s language and respond accordingly',
+        r'Please guide me on how',
+        r'\(.*?\)',  # Remove any remaining parenthetical notes
+    ]
+    
+    cleaned = text
+    for pattern in patterns_to_remove:
+        cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+    
+    # Clean up multiple spaces, newlines, and periods
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    cleaned = re.sub(r'\n\s*\n+', '\n', cleaned)
+    cleaned = re.sub(r'\.\s*\.+', '.', cleaned)  # Remove multiple periods
+    cleaned = re.sub(r'\s+\.', '.', cleaned)  # Remove space before period
+    
+    return cleaned.strip()
+
+def remove_repetitive_content(text):
+    """
+    Detects and removes repetitive sentences/phrases from the response.
+    Returns cleaned text with duplicates removed.
+    """
+    if not text:
+        return text
+    
+    # Split text into sentences (by periods, exclamation marks, question marks, newlines)
+    sentences = re.split(r'[.!?\n]\s+', text)
+    
+    # Remove empty sentences
+    sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]  # Ignore very short fragments
+    
+    if len(sentences) < 2:
+        return text
+    
+    # Track seen sentences (normalized for comparison)
+    seen = set()
+    unique_sentences = []
+    sentence_counts = {}  # Track how many times we've seen similar sentences
+    
+    for sentence in sentences:
+        # Normalize sentence for comparison (lowercase, remove extra spaces)
+        normalized = re.sub(r'\s+', ' ', sentence.lower().strip())
+        
+        # Skip if sentence is too short
+        if len(normalized) < 15:
+            unique_sentences.append(sentence)
+            continue
+        
+        # Check if this sentence is similar to any seen sentence (75% similarity threshold)
+        is_duplicate = False
+        best_match = None
+        
+        for seen_sentence in seen:
+            # Simple similarity check: if one sentence contains most of the other
+            words_current = set(normalized.split())
+            words_seen = set(seen_sentence.split())
+            
+            if len(words_current) > 0 and len(words_seen) > 0:
+                # Calculate overlap using Jaccard similarity
+                intersection = len(words_current & words_seen)
+                union = len(words_current | words_seen)
+                similarity = intersection / union if union > 0 else 0
+                
+                if similarity > 0.75:  # 75% word overlap = likely duplicate
+                    is_duplicate = True
+                    best_match = seen_sentence
+                    break
+        
+        if not is_duplicate:
+            seen.add(normalized)
+            unique_sentences.append(sentence)
+            sentence_counts[normalized] = 1
+        else:
+            # Count how many times we've seen this
+            if best_match in sentence_counts:
+                sentence_counts[best_match] += 1
+            else:
+                sentence_counts[best_match] = 2
+            
+            # Only log if we've seen it multiple times
+            if sentence_counts.get(best_match, 0) > 2:
+                logger.debug(f"Removed duplicate sentence (seen {sentence_counts[best_match]} times): {sentence[:50]}...")
+    
+    # Rejoin sentences with periods
+    cleaned_text = '. '.join(unique_sentences)
+    
+    # Ensure proper ending punctuation
+    if cleaned_text and not cleaned_text[-1] in '.!?':
+        cleaned_text += '.'
+    
+    return cleaned_text
+
 # Chatbot API Route with Chain-of-Thought Reasoning
 @app.route('/api/chatbot', methods=['POST'])
 def api_chatbot():
@@ -1066,8 +1333,12 @@ def api_chatbot():
                 "response": "I'm sorry, the AI assistant is not available. Please install Ollama to enable AI features."
             }), 503
         
-        # Get system prompt from separate file
-        system_prompt = get_system_prompt()
+        # Detect language BEFORE processing with LLM
+        detected_lang = detect_language(user_message)
+        logger.info(f"Detected language for message '{user_message[:50]}...': {detected_lang}")
+        
+        # Get system prompt with language-specific instructions
+        system_prompt = get_system_prompt(detected_lang)
         
         # Add context about available data sources
         context_info = ""
@@ -1125,11 +1396,18 @@ def api_chatbot():
                 options={
                     'temperature': 0.7,  # Slightly higher for more detailed, comprehensive responses
                     'top_p': 0.9,
-                    'num_predict': 2000  # Increased limit for detailed, comprehensive responses
+                    'num_predict': 2000,  # Increased limit for detailed, comprehensive responses
+                    'repeat_penalty': 1.2  # Penalty for repetition (higher = less repetition)
                 }
             )
             
             bot_response = response['message']['content'].strip()
+            
+            # Clean instruction leakage and meta-commentary
+            bot_response = clean_instruction_leakage(bot_response)
+            
+            # Detect and remove repetitive content
+            bot_response = remove_repetitive_content(bot_response)
             
             # Validate response for potential hallucinations
             is_valid, warning = validate_response_for_hallucination(bot_response)
