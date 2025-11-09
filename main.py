@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 🌱 FARMING APP - Agricultural Management Platform 🌱
 
@@ -6,9 +5,11 @@ Main entry point for the Farming App.
 This script starts the Flask application with proper logging and error handling.
 
 Usage:
+    conda activate syed
     python main.py
 
 Requirements:
+    - Conda environment 'syed' activated
     - .env file with required environment variables
     - All dependencies installed via requirements.txt
 """
@@ -19,32 +20,35 @@ import webbrowser
 import time
 from pathlib import Path
 
-# Check if we're using the conda environment Python
-# If CONDA_DEFAULT_ENV is set, ensure we're using the conda Python
-conda_env = os.environ.get('CONDA_DEFAULT_ENV')
-if conda_env:
-    # Get the conda environment Python path
-    conda_prefix = os.environ.get('CONDA_PREFIX')
-    if conda_prefix:
-        conda_python = os.path.join(conda_prefix, 'bin', 'python')
-        current_python = sys.executable
-        
-        # If we're not using the conda Python, try to use it
-        if not current_python.startswith(conda_prefix):
-            print(f"⚠️  Warning: Using system Python ({current_python}) instead of conda environment Python")
-            print(f"   Conda environment: {conda_env}")
-            print(f"   Attempting to use conda Python: {conda_python}")
-            
-            # Check if conda Python exists and try to use it
-            if os.path.exists(conda_python):
-                print(f"✅ Found conda Python, switching to it...")
-                # Re-execute with conda Python
-                os.execv(conda_python, [conda_python] + sys.argv)
-            else:
-                print(f"❌ Conda Python not found at: {conda_python}")
-                print(f"   Please run: python main.py (not python3 main.py)")
-                print(f"   Or ensure conda environment is activated: conda activate {conda_env}")
-                sys.exit(1)
+# Ensure conda environment is being used
+conda_env = os.environ.get('CONDA_DEFAULT_ENV', '')
+if not conda_env:
+    print("⚠️  Warning: No conda environment detected!")
+    print("   Please activate conda environment first:")
+    print("   conda activate syed")
+    print("   Then run: python main.py")
+    sys.exit(1)
+
+if conda_env != 'syed':
+    print(f"⚠️  Warning: Using conda environment '{conda_env}' instead of 'syed'")
+    print(f"   Please activate the correct environment:")
+    print("   conda activate syed")
+    print("   Then run: python main.py")
+    sys.exit(1)
+
+# Verify we're using conda Python
+conda_prefix = os.environ.get('CONDA_PREFIX')
+if conda_prefix:
+    conda_python = os.path.join(conda_prefix, 'bin', 'python')
+    current_python = sys.executable
+    
+    if not current_python.startswith(conda_prefix):
+        print(f"⚠️  Warning: Not using conda Python!")
+        print(f"   Current Python: {current_python}")
+        print(f"   Conda Python: {conda_python}")
+        print(f"   Please ensure conda environment 'syed' is activated")
+        print("   Run: conda activate syed && python main.py")
+        sys.exit(1)
 
 # Add current directory to Python path
 current_dir = Path(__file__).parent
