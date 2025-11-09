@@ -22,33 +22,72 @@ from pathlib import Path
 
 # Ensure conda environment is being used
 conda_env = os.environ.get('CONDA_DEFAULT_ENV', '')
-if not conda_env:
-    print("⚠️  Warning: No conda environment detected!")
-    print("   Please activate conda environment first:")
-    print("   conda activate syed")
-    print("   Then run: python main.py")
-    sys.exit(1)
-
-if conda_env != 'syed':
-    print(f"⚠️  Warning: Using conda environment '{conda_env}' instead of 'syed'")
-    print(f"   Please activate the correct environment:")
-    print("   conda activate syed")
-    print("   Then run: python main.py")
-    sys.exit(1)
-
-# Verify we're using conda Python
 conda_prefix = os.environ.get('CONDA_PREFIX')
+
+# Try to find and use 'syed' conda environment
+if conda_env != 'syed' or not conda_prefix:
+    # Try to find syed environment
+    if conda_prefix:
+        # Check if syed environment exists in the same conda installation
+        conda_base = os.path.dirname(os.path.dirname(conda_prefix)) if conda_prefix else None
+        if conda_base:
+            syed_env_path = os.path.join(conda_base, 'envs', 'syed')
+            if os.path.exists(syed_env_path):
+                # Use syed environment Python
+                if sys.platform == 'win32':
+                    syed_python = os.path.join(syed_env_path, 'python.exe')
+                else:
+                    syed_python = os.path.join(syed_env_path, 'bin', 'python')
+                
+                if os.path.exists(syed_python):
+                    print(f"✅ Found 'syed' conda environment, switching to it...")
+                    os.execv(syed_python, [syed_python] + sys.argv)
+    
+    # If syed not found, check current environment
+    if conda_env and conda_env != 'syed':
+        print(f"⚠️  Warning: Using conda environment '{conda_env}' instead of 'syed'")
+        print(f"   Please activate the correct environment:")
+        print("   conda activate syed")
+        print("   Then run: python main.py")
+        sys.exit(1)
+    elif not conda_env:
+        print("⚠️  Warning: No conda environment detected!")
+        print("   Please activate conda environment first:")
+        print("   conda activate syed")
+        print("   Then run: python main.py")
+        sys.exit(1)
+
+# Verify we're using conda Python (handle Windows case sensitivity)
 if conda_prefix:
-    conda_python = os.path.join(conda_prefix, 'bin', 'python')
+    if sys.platform == 'win32':
+        conda_python = os.path.join(conda_prefix, 'python.exe')
+    else:
+        conda_python = os.path.join(conda_prefix, 'bin', 'python')
+    
     current_python = sys.executable
     
-    if not current_python.startswith(conda_prefix):
-        print(f"⚠️  Warning: Not using conda Python!")
-        print(f"   Current Python: {current_python}")
-        print(f"   Conda Python: {conda_python}")
-        print(f"   Please ensure conda environment 'syed' is activated")
-        print("   Run: conda activate syed && python main.py")
-        sys.exit(1)
+    # Normalize paths for comparison (handle Windows case sensitivity)
+    def normalize_path(path):
+        if sys.platform == 'win32':
+            return os.path.normpath(os.path.normcase(path))
+        return os.path.normpath(path)
+    
+    current_normalized = normalize_path(current_python)
+    conda_normalized = normalize_path(conda_python)
+    prefix_normalized = normalize_path(conda_prefix)
+    
+    if not current_normalized.startswith(prefix_normalized):
+        # Try to switch to conda Python if it exists
+        if os.path.exists(conda_python):
+            print(f"⚠️  Not using conda Python, switching to: {conda_python}")
+            os.execv(conda_python, [conda_python] + sys.argv)
+        else:
+            print(f"⚠️  Warning: Not using conda Python!")
+            print(f"   Current Python: {current_python}")
+            print(f"   Conda Python: {conda_python}")
+            print(f"   Please ensure conda environment 'syed' is activated")
+            print("   Run: conda activate syed && python main.py")
+            sys.exit(1)
 
 # Add current directory to Python path
 current_dir = Path(__file__).parent
