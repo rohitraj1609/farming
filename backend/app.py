@@ -1,13 +1,16 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory
 from pymongo import MongoClient
 from bson import ObjectId
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import os
 import re
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import threading
+import time
 
 # Add parent directory to path for utils import
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -15,12 +18,31 @@ from utils.logger import setup_logger, log_startup, log_success, log_error, log_
 from utils.chatbot_prompt import get_system_prompt, get_user_prompt_template, validate_response_for_hallucination
 
 # Import Ollama for local LLM
+OLLAMA_AVAILABLE = False
+OLLAMA_ERROR = None
 try:
     import ollama
     OLLAMA_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     OLLAMA_AVAILABLE = False
+    OLLAMA_ERROR = str(e)
     # Will log warning after logger is initialized
+except Exception as e:
+    # Handle any other import errors
+    OLLAMA_AVAILABLE = False
+    OLLAMA_ERROR = str(e)
+
+# Import Razorpay for payment processing
+RAZORPAY_AVAILABLE = False
+razorpay_client = None
+try:
+    import razorpay
+    RAZORPAY_AVAILABLE = True
+except ImportError:
+    RAZORPAY_AVAILABLE = False
+    # Will log warning after logger is initialized
+except Exception:
+    RAZORPAY_AVAILABLE = False
 
 # Load environment variables from .env file
 load_dotenv()
@@ -30,12 +52,42 @@ logger = setup_logger("FarmingApp")
 
 # Log Ollama availability status
 if not OLLAMA_AVAILABLE:
-    log_warning("Ollama not installed. Chatbot will use fallback responses. Install with: pip install ollama")
+    python_path = sys.executable
+    conda_env = os.environ.get('CONDA_DEFAULT_ENV', 'Not in conda env')
+    log_warning(f"Ollama not available in current Python: {python_path}")
+    log_warning(f"Conda environment: {conda_env}")
+    log_warning("Make sure you're using the conda environment Python. Try: conda activate syed && python main.py")
+    log_warning("Or install ollama in current environment: pip install ollama")
+
+# Load Razorpay keys from environment (before checking)
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
+
+# Log Razorpay availability status
+if not RAZORPAY_AVAILABLE:
+    log_warning("Razorpay not installed. Install with: pip install razorpay")
+elif not RAZORPAY_KEY_ID or not RAZORPAY_KEY_SECRET:
+    log_warning("Razorpay keys not found in environment variables. Payment features will be disabled.")
 
 # Chatbot session storage (in-memory, stores conversation history per session)
 chatbot_sessions = {}  # Format: {session_id: [{"role": "user", "content": "message"}, {"role": "assistant", "content": "response"}, ...]}
 
 app = Flask(__name__, template_folder='../templates')
+
+# Configure upload settings
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'uploads', 'stories')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov', 'avi', 'webm'}
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB max file size
+
+# Create upload directory if it doesn't exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Check required environment variables
 SECRET_KEY = os.getenv('SECRET_KEY')
@@ -52,6 +104,19 @@ if not MONGO_URI:
 app.secret_key = SECRET_KEY
 log_success("Flask secret key configured")
 
+# Initialize Razorpay (keys already loaded above)
+if RAZORPAY_AVAILABLE and RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+    try:
+        razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+        log_success("Razorpay initialized successfully")
+    except Exception as e:
+        log_error(f"Failed to initialize Razorpay: {e}")
+        razorpay_client = None
+elif RAZORPAY_AVAILABLE:
+    log_warning("Razorpay keys not found in environment variables. Payment features will be disabled.")
+else:
+    log_warning("Razorpay not available. Payment features will be disabled.")
+
 # Connect to MongoDB
 try:
     client = MongoClient(MONGO_URI)
@@ -60,6 +125,7 @@ try:
     users_collection = db.users
     market_updates_collection = db.market_updates
     crops_collection = db.crops
+    stories_collection = db.stories
     log_success(f"Connected to MongoDB database: {db_name}")
 except Exception as e:
     log_error(f"Failed to connect to MongoDB: {e}")
@@ -210,17 +276,19 @@ def validate_password(password):
 
 @app.route('/')
 def index():
-    """Serve the main webpage"""
+    """Serve the main webpage - redirect to booking/homepage"""
     try:
-        # Check if user is logged in, if so redirect to booking
+        # Check if user is logged in
         if 'user_id' in session:
-            logger.info(f"User {session.get('username', 'Unknown')} is logged in, redirecting to booking page")
+            # Redirect to booking page (homepage/dashboard)
+            logger.info(f"User {session.get('username', 'Unknown')} is logged in, redirecting to homepage")
             return redirect('/booking')
-        
-        logger.info("Serving main webpage")
-        return render_template('landing.html')
+        else:
+            # Not logged in, redirect to market page (public)
+            logger.info("User not logged in, redirecting to market page")
+            return redirect('/market')
     except Exception as e:
-        logger.error(f"Error serving main webpage: {e}")
+        logger.error(f"Error redirecting: {e}")
         return "Error loading webpage.", 500
 
 @app.route('/styles.css')
@@ -449,26 +517,21 @@ def sell_page():
 
 @app.route('/market')
 def market_page():
-    """Market updates page"""
+    """Market updates page - accessible without login"""
     try:
-        # Check if user is logged in
-        if 'user_id' not in session:
-            logger.warning("Unauthorized access to market page - redirecting to login")
-            flash('Please login to access the market page', 'error')
-            return redirect('/login-page')
-        
-        # Get user data from session
-        user_email = session.get('email', 'user@example.com')
+        # Market page is accessible to everyone (no login required)
+        # Get user data from session if available (optional)
+        user_email = session.get('email', '')
         user_phone = session.get('phone', '')
         profile = session.get('profile', {})
-        user_name = profile.get('name', user_email.split('@')[0])
+        user_name = profile.get('name', user_email.split('@')[0]) if user_email else 'Guest'
         user_location = profile.get('location', '')
         user_bio = profile.get('bio', '')
         
         # Get market updates from database
         market_updates = get_market_updates()
         
-        logger.info(f"Serving market page for user: {user_name}")
+        logger.info(f"Serving market page for user: {user_name if user_email else 'Guest'}")
         return render_template('market.html', 
                              user_email=user_email,
                              user_phone=user_phone,
@@ -479,6 +542,85 @@ def market_page():
     except Exception as e:
         logger.error(f"Error serving market page: {e}")
         return "Error loading market page.", 500
+
+@app.route('/orders')
+def orders_page():
+    """My Orders page - shows user's purchase history"""
+    try:
+        # Check if user is logged in
+        if 'user_id' not in session:
+            logger.warning("Unauthorized access to orders page - redirecting to login")
+            flash('Please login to access your orders', 'error')
+            return redirect('/login-page')
+        
+        # Get user data from session
+        user_email = session.get('email', 'user@example.com')
+        user_phone = session.get('phone', '')
+        profile = session.get('profile', {})
+        user_name = profile.get('name', user_email.split('@')[0])
+        user_location = profile.get('location', '')
+        user_bio = profile.get('bio', '')
+        
+        # Get user's orders from payments collection
+        payments_collection = db.payments
+        orders = list(payments_collection.find({
+            'user_email': user_email,
+            'status': 'success'
+        }).sort("created_at", -1))
+        
+        # Enrich orders with crop and seller details
+        enriched_orders = []
+        for order in orders:
+            order_dict = {
+                '_id': str(order['_id']),
+                'payment_id': order.get('payment_id', ''),
+                'order_id': order.get('order_id', ''),
+                'amount': order.get('amount', 0),
+                'created_at': order.get('created_at'),
+                'crop_id': order.get('crop_id', ''),
+                'crop_name': order.get('crop_name', 'Unknown Crop'),
+                'quantity_purchased': order.get('quantity_purchased', 0)
+            }
+            
+            # Get crop details if crop_id exists
+            if order.get('crop_id'):
+                try:
+                    from bson import ObjectId
+                    crop = crops_collection.find_one({"_id": ObjectId(order['crop_id'])})
+                    if crop:
+                        # Get seller details
+                        seller_email = crop.get('seller_email', '')
+                        seller = users_collection.find_one({'email': seller_email})
+                        
+                        order_dict['crop_details'] = {
+                            'name': crop.get('name', 'Unknown'),
+                            'category': crop.get('category', ''),
+                            'price_per_kg': crop.get('price_per_kg', 0),
+                            'location': crop.get('location', '')
+                        }
+                        
+                        order_dict['seller_details'] = {
+                            'name': crop.get('seller_name', 'Unknown Seller'),
+                            'email': seller_email,
+                            'phone': crop.get('seller_phone', ''),
+                            'location': seller.get('profile', {}).get('location', '') if seller else ''
+                        }
+                except Exception as e:
+                    logger.error(f"Error fetching crop details for order: {e}")
+            
+            enriched_orders.append(order_dict)
+        
+        logger.info(f"Serving orders page for user: {user_name} ({len(enriched_orders)} orders)")
+        return render_template('orders.html', 
+                             user_email=user_email,
+                             user_phone=user_phone,
+                             user_name=user_name,
+                             user_location=user_location,
+                             user_bio=user_bio,
+                             orders=enriched_orders)
+    except Exception as e:
+        logger.error(f"Error serving orders page: {e}")
+        return "Error loading orders page.", 500
 
 @app.route('/buy')
 def buy_page():
@@ -1483,6 +1625,367 @@ def api_chatbot():
             "success": False,
             "error": str(e),
             "response": "I'm sorry, I encountered an error. Please try again."
+        }), 500
+
+# Razorpay Payment API Routes
+@app.route('/api/payment/create-order', methods=['POST'])
+def create_payment_order():
+    """Create a Razorpay payment order"""
+    try:
+        if not razorpay_client:
+            return jsonify({
+                "success": False,
+                "error": "Razorpay is not configured. Please check your API keys."
+            }), 503
+        
+        data = request.get_json()
+        amount = data.get('amount')  # Amount in rupees from frontend (e.g., 1000 = ₹1000)
+        currency = data.get('currency', 'INR')
+        receipt = data.get('receipt', f"receipt_{uuid.uuid4().hex[:8]}")
+        
+        if not amount:
+            return jsonify({
+                "success": False,
+                "error": "Amount is required"
+            }), 400
+        
+        # Convert amount from rupees to paise (always multiply by 100)
+        # Frontend always sends amount in rupees, so we always convert to paise
+        amount_in_paise = int(float(amount) * 100)
+        
+        logger.info(f"Payment order: {amount} rupees = {amount_in_paise} paise")
+        
+        amount = amount_in_paise
+        
+        # Create order
+        order_data = {
+            'amount': amount,
+            'currency': currency,
+            'receipt': receipt,
+            'notes': {
+                'user_id': session.get('user_id', ''),
+                'user_email': session.get('email', ''),
+                'order_type': data.get('order_type', 'crop_purchase')
+            }
+        }
+        
+        order = razorpay_client.order.create(data=order_data)
+        
+        logger.info(f"Payment order created: {order['id']} for amount {amount} paise")
+        
+        return jsonify({
+            "success": True,
+            "order": {
+                "id": order['id'],
+                "amount": order['amount'],
+                "currency": order['currency'],
+                "key": RAZORPAY_KEY_ID
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error creating payment order: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/payment/verify', methods=['POST'])
+def verify_payment():
+    """Verify Razorpay payment signature"""
+    try:
+        if not razorpay_client:
+            return jsonify({
+                "success": False,
+                "error": "Razorpay is not configured"
+            }), 503
+        
+        data = request.get_json()
+        razorpay_order_id = data.get('razorpay_order_id')
+        razorpay_payment_id = data.get('razorpay_payment_id')
+        razorpay_signature = data.get('razorpay_signature')
+        
+        if not all([razorpay_order_id, razorpay_payment_id, razorpay_signature]):
+            return jsonify({
+                "success": False,
+                "error": "Missing payment verification data"
+            }), 400
+        
+        # Verify signature
+        params_dict = {
+            'razorpay_order_id': razorpay_order_id,
+            'razorpay_payment_id': razorpay_payment_id,
+            'razorpay_signature': razorpay_signature
+        }
+        
+        try:
+            razorpay_client.utility.verify_payment_signature(params_dict)
+            
+            # Payment verified successfully
+            # Store payment in database
+            # Amount from frontend is in rupees, convert to paise for consistency with Razorpay
+            amount_rupees = float(data.get('amount', 0))
+            amount_paise = int(amount_rupees * 100)
+            
+            payment_data = {
+                'order_id': razorpay_order_id,
+                'payment_id': razorpay_payment_id,
+                'user_id': session.get('user_id', ''),
+                'user_email': session.get('email', ''),
+                'amount': amount_paise,  # Store in paise to match Razorpay format
+                'status': 'success',
+                'created_at': datetime.utcnow()
+            }
+            
+            # Get crop purchase details from order data
+            crop_id = data.get('crop_id')
+            quantity_purchased = data.get('quantity', 0)
+            crop_sold_out = False
+            new_quantity = None
+            
+            # Update crop quantity if this is a crop purchase
+            if crop_id and quantity_purchased:
+                try:
+                    from bson import ObjectId
+                    crop = crops_collection.find_one({"_id": ObjectId(crop_id)})
+                    
+                    if crop:
+                        current_quantity = crop.get('quantity', 0)
+                        new_quantity = max(0, current_quantity - quantity_purchased)
+                        
+                        # Update crop quantity
+                        update_data = {
+                            'quantity': new_quantity,
+                            'updated_at': datetime.utcnow()
+                        }
+                        
+                        # Mark as sold out if quantity reaches 0
+                        if new_quantity == 0:
+                            update_data['is_active'] = False
+                            crop_sold_out = True
+                            logger.info(f"Crop {crop_id} marked as sold out (quantity: {new_quantity})")
+                        
+                        crops_collection.update_one(
+                            {"_id": ObjectId(crop_id)},
+                            {"$set": update_data}
+                        )
+                        
+                        logger.info(f"Updated crop {crop_id}: quantity {current_quantity} -> {new_quantity}")
+                        
+                        # Add crop info to payment data
+                        payment_data['crop_id'] = crop_id
+                        payment_data['crop_name'] = data.get('crop_name', crop.get('name', ''))
+                        payment_data['quantity_purchased'] = quantity_purchased
+                    else:
+                        logger.warning(f"Crop {crop_id} not found for payment update")
+                except Exception as crop_error:
+                    logger.error(f"Error updating crop quantity: {crop_error}")
+                    # Don't fail payment if crop update fails
+            
+            # Create payments collection if it doesn't exist
+            payments_collection = db.payments
+            payments_collection.insert_one(payment_data)
+            
+            logger.info(f"Payment verified successfully: {razorpay_payment_id}")
+            
+            return jsonify({
+                "success": True,
+                "message": "Payment verified successfully",
+                "payment_id": razorpay_payment_id,
+                "crop_sold_out": crop_sold_out
+            })
+            
+        except razorpay.errors.SignatureVerificationError:
+            logger.error(f"Payment signature verification failed: {razorpay_payment_id}")
+            return jsonify({
+                "success": False,
+                "error": "Payment verification failed"
+            }), 400
+        
+    except Exception as e:
+        logger.error(f"Error verifying payment: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# ==================== STORIES API ====================
+
+@app.route('/api/stories/upload', methods=['POST'])
+def upload_story():
+    """Upload a story (image or video)"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({"success": False, "error": "Please login to upload stories"}), 401
+        
+        if 'file' not in request.files:
+            return jsonify({"success": False, "error": "No file provided"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"success": False, "error": "No file selected"}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({"success": False, "error": "File type not allowed. Allowed: images (png, jpg, jpeg, gif) and videos (mp4, mov, avi, webm)"}), 400
+        
+        # Generate unique filename
+        file_ext = file.filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"{uuid.uuid4().hex}.{file_ext}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        
+        # Save file
+        file.save(filepath)
+        
+        # Determine media type
+        media_type = 'video' if file_ext in ['mp4', 'mov', 'avi', 'webm'] else 'image'
+        
+        # Get user info
+        user_email = session.get('email', '')
+        user_name = session.get('profile', {}).get('name', user_email.split('@')[0])
+        user_id = session.get('user_id', '')
+        
+        # Create story document
+        story_data = {
+            'user_id': user_id,
+            'user_email': user_email,
+            'user_name': user_name,
+            'filename': unique_filename,
+            'original_filename': secure_filename(file.filename),
+            'media_type': media_type,
+            'created_at': datetime.utcnow(),
+            'expires_at': datetime.utcnow() + timedelta(hours=24)
+        }
+        
+        # Insert into database
+        result = stories_collection.insert_one(story_data)
+        story_data['_id'] = str(result.inserted_id)
+        
+        logger.info(f"Story uploaded by {user_email}: {unique_filename}")
+        
+        return jsonify({
+            "success": True,
+            "story": {
+                "_id": story_data['_id'],
+                "filename": unique_filename,
+                "media_type": media_type,
+                "user_name": user_name,
+                "created_at": story_data['created_at'].isoformat()
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error uploading story: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/stories', methods=['GET'])
+def get_stories():
+    """Get all active stories (not expired)"""
+    try:
+        # Get all stories that haven't expired, grouped by user
+        now = datetime.utcnow()
+        stories = list(stories_collection.find({
+            'expires_at': {'$gt': now}
+        }).sort("created_at", -1))
+        
+        # Group stories by user
+        stories_by_user = {}
+        for story in stories:
+            user_id = story.get('user_id', '')
+            if user_id not in stories_by_user:
+                stories_by_user[user_id] = {
+                    'user_id': user_id,
+                    'user_name': story.get('user_name', 'Unknown'),
+                    'user_email': story.get('user_email', ''),
+                    'stories': []
+                }
+            
+            stories_by_user[user_id]['stories'].append({
+                '_id': str(story['_id']),
+                'filename': story.get('filename', ''),
+                'media_type': story.get('media_type', 'image'),
+                'created_at': story.get('created_at').isoformat() if story.get('created_at') else None,
+                'expires_at': story.get('expires_at').isoformat() if story.get('expires_at') else None
+            })
+        
+        # Convert to list
+        stories_list = list(stories_by_user.values())
+        
+        return jsonify({
+            "success": True,
+            "stories": stories_list
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching stories: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/uploads/stories/<filename>')
+def serve_story(filename):
+    """Serve story files"""
+    try:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    except Exception as e:
+        logger.error(f"Error serving story file: {e}")
+        return "File not found", 404
+
+def cleanup_expired_stories():
+    """Background job to delete expired stories"""
+    while True:
+        try:
+            now = datetime.utcnow()
+            expired_stories = list(stories_collection.find({
+                'expires_at': {'$lte': now}
+            }))
+            
+            for story in expired_stories:
+                # Delete file from filesystem
+                filename = story.get('filename', '')
+                if filename:
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    try:
+                        if os.path.exists(filepath):
+                            os.remove(filepath)
+                            logger.info(f"Deleted expired story file: {filename}")
+                    except Exception as e:
+                        logger.error(f"Error deleting story file {filename}: {e}")
+                
+                # Delete from database
+                stories_collection.delete_one({'_id': story['_id']})
+            
+            if expired_stories:
+                logger.info(f"Cleaned up {len(expired_stories)} expired stories")
+            
+            # Run cleanup every hour
+            time.sleep(3600)
+            
+        except Exception as e:
+            logger.error(f"Error in story cleanup job: {e}")
+            time.sleep(3600)
+
+# Start cleanup thread
+cleanup_thread = threading.Thread(target=cleanup_expired_stories, daemon=True)
+cleanup_thread.start()
+log_success("Story cleanup background job started")
+
+@app.route('/api/payment/get-key', methods=['GET'])
+def get_razorpay_key():
+    """Get Razorpay public key for frontend"""
+    try:
+        if not RAZORPAY_KEY_ID:
+            return jsonify({
+                "success": False,
+                "error": "Razorpay key not configured"
+            }), 503
+        
+        return jsonify({
+            "success": True,
+            "key": RAZORPAY_KEY_ID
+        })
+    except Exception as e:
+        logger.error(f"Error getting Razorpay key: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
         }), 500
 
 if __name__ == '__main__':

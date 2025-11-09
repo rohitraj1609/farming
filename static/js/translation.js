@@ -3,6 +3,8 @@ const translations = {
     en: {
         // Navigation
         'nav.home': 'Home',
+        'nav.homepage': 'Homepage',
+        'nav.market': 'Market Updates',
         'nav.login': 'Login',
         'nav.signup': 'Sign Up',
         'nav.about': 'About Us',
@@ -11,6 +13,7 @@ const translations = {
         'nav.profileSettings': 'Profile Settings',
         'nav.accountSettings': 'Account Settings',
         'nav.myListings': 'My Listings',
+        'nav.myOrders': 'My Orders',
         'nav.shareApp': 'Share App',
         
         // Common
@@ -117,6 +120,7 @@ const translations = {
         'buy.delete': 'Delete',
         'buy.contactSeller': 'Contact Seller',
         'buy.buyNow': 'Buy Now',
+        'buy.soldOut': 'Sold Out',
         'buy.yourListing': 'Your Listing',
         'buy.noCrops': 'No crops available',
         'buy.checkBack': 'Check back later for new crop listings!',
@@ -229,6 +233,8 @@ const translations = {
     hi: {
         // Navigation
         'nav.home': 'होम',
+        'nav.homepage': 'होमपेज',
+        'nav.market': 'बाजार अपडेट',
         'nav.login': 'लॉगिन',
         'nav.signup': 'साइन अप',
         'nav.about': 'हमारे बारे में',
@@ -237,6 +243,7 @@ const translations = {
         'nav.profileSettings': 'प्रोफ़ाइल सेटिंग्स',
         'nav.accountSettings': 'खाता सेटिंग्स',
         'nav.myListings': 'मेरी सूचियां',
+        'nav.myOrders': 'मेरे ऑर्डर',
         'nav.shareApp': 'ऐप साझा करें',
         
         // Common
@@ -343,6 +350,7 @@ const translations = {
         'buy.delete': 'हटाएं',
         'buy.contactSeller': 'विक्रेता से संपर्क करें',
         'buy.buyNow': 'अभी खरीदें',
+        'buy.soldOut': 'बिक चुका',
         'buy.yourListing': 'आपकी सूची',
         'buy.noCrops': 'कोई फसल उपलब्ध नहीं',
         'buy.checkBack': 'नई फसल सूचियों के लिए बाद में वापस जांचें!',

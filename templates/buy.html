@@ -50,12 +50,6 @@ setTimeout(() => {
         </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="search-container">
-        <div class="search-wrapper">
-            <input type="text" placeholder="Search crops to buy..." class="search-input" data-translate="buy.search">
-        </div>
-    </div>
 
     <!-- Action Buttons -->
     <div class="action-buttons-section">
@@ -121,9 +115,12 @@ setTimeout(() => {
         <div class="listings-grid">
             {% if crops %}
                 {% for crop in crops %}
-                <div class="crop-card {% if crop.seller_email == user_email %}own-listing{% endif %}">
+                <div class="crop-card {% if crop.seller_email == user_email %}own-listing{% endif %} {% if not crop.is_active or crop.quantity == 0 %}sold-out{% endif %}">
                     {% if crop.seller_email == user_email %}
                     <div class="listing-badge" data-translate="buy.yourListing">Your Listing</div>
+                    {% endif %}
+                    {% if not crop.is_active or crop.quantity == 0 %}
+                    <div class="sold-out-badge">SOLD OUT</div>
                     {% endif %}
                     <div class="crop-image">
                         <span class="crop-icon">
@@ -140,7 +137,11 @@ setTimeout(() => {
                         <p class="farmer"><span data-translate="buy.by">By:</span> {{ crop.seller_name }}</p>
                         <p class="location">📍 {{ crop.location }}</p>
                         <div class="crop-details">
+                            {% if crop.quantity == 0 or not crop.is_active %}
+                            <span class="quantity sold-out-text"><span data-translate="buy.soldOut">Sold Out</span></span>
+                            {% else %}
                             <span class="quantity">{{ crop.quantity }} <span data-translate="buy.kgAvailable">kg available</span></span>
+                            {% endif %}
                             <span class="harvest-date">
                                 {% if crop.created_at %}
                                     <span data-translate="buy.listed">Listed:</span> {{ crop.created_at.strftime('%d %b %Y') }}
@@ -160,8 +161,12 @@ setTimeout(() => {
                                 <button class="btn-delete" onclick="deleteCrop('{{ crop._id }}')">🗑️ <span data-translate="buy.delete">Delete</span></button>
                             {% else %}
                                 <!-- Show buy/contact buttons for other users' listings -->
+                                {% if crop.quantity == 0 or not crop.is_active %}
+                                <button class="btn-contact" onclick="contactSeller('{{ crop.seller_phone }}', '{{ crop.name }}')" style="width: 100%;">📞 <span data-translate="buy.contactSeller">Contact Seller</span></button>
+                                {% else %}
                                 <button class="btn-contact" onclick="contactSeller('{{ crop.seller_phone }}', '{{ crop.name }}')">📞 <span data-translate="buy.contactSeller">Contact Seller</span></button>
                                 <button class="btn-buy" onclick="buyCrop('{{ crop._id }}')">🛒 <span data-translate="buy.buyNow">Buy Now</span></button>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>
@@ -207,9 +212,85 @@ function contactSeller(phone, cropName) {
     }
 }
 
-function buyCrop(cropId) {
-    // For now, just show an alert. In a real app, you'd open a purchase modal
-    alert('Purchase functionality will be implemented. Crop ID: ' + cropId);
+async function buyCrop(cropId) {
+    try {
+        // Fetch crop details from API
+        const response = await fetch(`/api/crops`);
+        const data = await response.json();
+        
+        if (!data.success) {
+            alert('Error: Could not fetch crop details');
+            return;
+        }
+        
+        // Find the crop by ID
+        const crop = data.crops.find(c => c._id === cropId);
+        
+        if (!crop) {
+            alert('Crop not found');
+            return;
+        }
+        
+        // Check if crop is available
+        if (!crop.is_active || crop.quantity === 0) {
+            alert('This crop is sold out and no longer available');
+            location.reload(); // Refresh to update UI
+            return;
+        }
+        
+        // Ask user for quantity
+        const maxQuantity = crop.quantity;
+        const quantity = prompt(`Enter quantity (kg) to purchase (Available: ${maxQuantity} kg):`, '1');
+        
+        if (!quantity || isNaN(quantity) || quantity <= 0) {
+            return; // User cancelled or invalid input
+        }
+        
+        const qty = parseFloat(quantity);
+        
+        if (qty > maxQuantity) {
+            alert(`Sorry, only ${maxQuantity} kg available`);
+            return;
+        }
+        
+        // Calculate total amount
+        const totalAmount = crop.price_per_kg * qty;
+        
+        // Confirm purchase
+        const confirmMsg = `Purchase Details:\n\n` +
+            `Crop: ${crop.name}\n` +
+            `Quantity: ${qty} kg\n` +
+            `Price per kg: ₹${crop.price_per_kg}\n` +
+            `Total Amount: ₹${totalAmount.toFixed(2)}\n\n` +
+            `Proceed to payment?`;
+        
+        if (!confirm(confirmMsg)) {
+            return; // User cancelled
+        }
+        
+        // Initiate Razorpay payment
+        if (typeof initiatePayment === 'function') {
+            await initiatePayment(
+                totalAmount, 
+                `Purchase ${qty} kg of ${crop.name}`,
+                {
+                    crop_id: cropId,
+                    crop_name: crop.name,
+                    quantity: qty,
+                    price_per_kg: crop.price_per_kg,
+                    seller_email: crop.seller_email,
+                    seller_name: crop.seller_name
+                }
+            );
+        } else {
+            alert('Payment system is not available. Please try again later.');
+            console.error('initiatePayment function not found. Make sure payment.js is loaded.');
+        }
+        
+    } catch (error) {
+        console.error('Error in buyCrop:', error);
+        alert('An error occurred while processing your purchase. Please try again.');
+    }
 }
 
 function editCrop(cropId) {

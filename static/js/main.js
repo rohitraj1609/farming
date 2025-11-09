@@ -130,11 +130,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Check if we're on the booking page or have user data in session
-        const bookingPage = document.querySelector('.booking-page');
+        // Check if user is logged in (has userEmail in sessionStorage)
         const hasUserEmail = sessionStorage.getItem('userEmail');
-        const isOnBookingPage = window.location.pathname.includes('/booking');
-        const isLoggedIn = bookingPage !== null || hasUserEmail || isOnBookingPage;
+        const isLoggedIn = hasUserEmail && hasUserEmail !== '';
         
         if (loginBtn && signupBtn && profileDropdown) {
             // Force show profile dropdown if we're on booking page (user is logged in)

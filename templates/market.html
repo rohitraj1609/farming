@@ -3,6 +3,8 @@
 {% block title %}Market Updates - Farming App{% endblock %}
 
 {% block head_extra %}
+<!-- Stories Feature - Only on Market Page -->
+<script src="{{ url_for('static', filename='js/stories.js') }}"></script>
 <script>
 // Pass user data to the base template
 console.log('Setting user data in sessionStorage...');
@@ -41,6 +43,12 @@ setTimeout(() => {
 {% endblock %}
 
 {% block content %}
+<!-- Stories Bar - Only on Market Page -->
+<div id="stories-bar" class="stories-bar"></div>
+
+<!-- Story Viewer - Only on Market Page -->
+<div id="story-viewer" class="story-viewer" style="display: none;"></div>
+
 <div class="market-page">
     <!-- Page Header -->
     <div class="page-header">
@@ -50,12 +58,6 @@ setTimeout(() => {
         </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="search-container">
-        <div class="search-wrapper">
-            <input type="text" placeholder="Search market news..." class="search-input" data-translate="market.search">
-        </div>
-    </div>
 
     <!-- Action Buttons -->
     <div class="action-buttons-section">
