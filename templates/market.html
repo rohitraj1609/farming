@@ -3,20 +3,28 @@
 {% block title %}Market Updates - Farming App{% endblock %}
 
 {% block head_extra %}
-<!-- Stories Feature - Only on Market Page -->
-<script src="{{ url_for('static', filename='js/stories.js') }}"></script>
 <script>
 // Pass user data to the base template
-console.log('Setting user data in sessionStorage...');
-console.log('User email:', '{{ user_email or "user@example.com" }}');
-console.log('User name:', '{{ user_name or "User" }}');
+const userEmail = '{{ user_email or "" }}';
+const userName = '{{ user_name or "User" }}';
 
-// Store user data in sessionStorage for the base template
-sessionStorage.setItem('userEmail', '{{ user_email or "user@example.com" }}');
-sessionStorage.setItem('userPhone', '{{ user_phone or "" }}');
-sessionStorage.setItem('userName', '{{ user_name or "User" }}');
-sessionStorage.setItem('userLocation', '{{ user_location or "" }}');
-sessionStorage.setItem('userBio', '{{ user_bio or "" }}');
+console.log('Setting user data in sessionStorage...');
+console.log('User email:', userEmail);
+console.log('User name:', userName);
+
+// Store user data in sessionStorage for the base template (only if user is logged in)
+if (userEmail && userEmail !== '' && userEmail !== 'Guest') {
+    sessionStorage.setItem('userEmail', userEmail);
+    sessionStorage.setItem('userPhone', '{{ user_phone or "" }}');
+    sessionStorage.setItem('userName', userName);
+    sessionStorage.setItem('userLocation', '{{ user_location or "" }}');
+    sessionStorage.setItem('userBio', '{{ user_bio or "" }}');
+} else {
+    // Clear sessionStorage if not logged in
+    sessionStorage.removeItem('userEmail');
+    sessionStorage.removeItem('userPhone');
+    sessionStorage.removeItem('userName');
+}
 
 console.log('User data stored:', {
     email: sessionStorage.getItem('userEmail'),
@@ -43,11 +51,71 @@ setTimeout(() => {
 {% endblock %}
 
 {% block content %}
-<!-- Stories Bar - Only on Market Page -->
-<div id="stories-bar" class="stories-bar"></div>
+<!-- Stories Bar - Instagram-style at top -->
+<div id="stories-bar" class="stories-bar" 
+     data-user-email="{{ user_email if user_email else '' }}" 
+     data-user-name="{{ user_name if user_name else (user_email.split('@')[0] if user_email else 'User') }}" 
+     style="display: block !important; visibility: visible !important; opacity: 1 !important; min-height: 120px;">
+</div>
 
 <!-- Story Viewer - Only on Market Page -->
 <div id="story-viewer" class="story-viewer" style="display: none;"></div>
+
+<!-- Load and initialize stories.js -->
+<script src="{{ url_for('static', filename='js/stories.js') }}"></script>
+<script>
+// Ensure stories initialize after page load
+(function() {
+    console.log('📱 Market page script running...');
+    
+    function ensureStoriesLoad() {
+        const storyBar = document.getElementById('stories-bar');
+        if (!storyBar) {
+            console.warn('⚠️ Stories bar not found yet');
+            setTimeout(ensureStoriesLoad, 100);
+            return;
+        }
+        
+        console.log('✅ Stories bar found, initializing...');
+        
+        // Wait for stories.js to load
+        if (typeof loadStories === 'undefined' && typeof initStories === 'undefined') {
+            console.warn('⚠️ stories.js not loaded yet, waiting...');
+            setTimeout(ensureStoriesLoad, 100);
+            return;
+        }
+        
+        // Force initialization
+        setTimeout(() => {
+            if (typeof initStories === 'function') {
+                console.log('🚀 Calling initStories...');
+                initStories();
+            } else if (typeof loadStories === 'function') {
+                console.log('🚀 Calling loadStories...');
+                loadStories();
+            } else {
+                console.error('❌ stories.js functions not available!');
+            }
+        }, 300);
+    }
+    
+    // Try multiple times to ensure it loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', ensureStoriesLoad);
+    } else {
+        ensureStoriesLoad();
+    }
+    
+    // Also try after a delay
+    setTimeout(ensureStoriesLoad, 500);
+    setTimeout(ensureStoriesLoad, 1000);
+})();
+
+// Flask debug mode already auto-reloads, but we can add a visual indicator
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    console.log('🔄 Development mode: Flask auto-reload is active');
+}
+</script>
 
 <div class="market-page">
     <!-- Page Header -->

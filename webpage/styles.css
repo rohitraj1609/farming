@@ -4676,9 +4676,10 @@ a:hover {
 
 .stories-bar {
     background: white;
-    padding: 15px 20px;
+    padding: 16px 0;
     margin-top: 80px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 0;
+    border-bottom: 1px solid #dbdbdb;
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
@@ -4687,25 +4688,23 @@ a:hover {
     display: block !important;
     width: 100%;
     box-sizing: border-box;
+    min-height: 120px;
+    visibility: visible !important;
+    opacity: 1 !important;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 .stories-bar::-webkit-scrollbar {
-    height: 4px;
-}
-
-.stories-bar::-webkit-scrollbar-track {
-    background: #f1f1f1;
-}
-
-.stories-bar::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 2px;
+    display: none;
 }
 
 .stories-container {
     display: inline-flex;
-    gap: 15px;
+    gap: 16px;
     align-items: center;
+    padding: 0 16px;
+    min-width: 100%;
 }
 
 .story-item {
@@ -4714,7 +4713,8 @@ a:hover {
     align-items: center;
     cursor: pointer;
     transition: transform 0.2s;
-    min-width: 70px;
+    min-width: 80px;
+    flex-shrink: 0;
 }
 
 .story-item:hover {
@@ -4722,8 +4722,8 @@ a:hover {
 }
 
 .story-avatar {
-    width: 60px;
-    height: 60px;
+    width: 66px;
+    height: 66px;
     border-radius: 50%;
     background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
     padding: 3px;
@@ -4731,12 +4731,13 @@ a:hover {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .story-avatar::before {
     content: '';
-    width: 54px;
-    height: 54px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     background: white;
     position: absolute;
@@ -4744,8 +4745,8 @@ a:hover {
 
 .story-avatar::after {
     content: attr(data-initial);
-    width: 54px;
-    height: 54px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     background: linear-gradient(135deg, #28a745, #20c997);
     color: white;
@@ -4788,37 +4789,49 @@ a:hover {
     border: 2px solid white;
 }
 
-.story-upload .upload-avatar {
-    background: #f5f5f5;
-    border: 2px dashed #ccc;
+.story-upload .upload-avatar,
+.story-upload .story-avatar.upload-avatar,
+.story-avatar.upload-avatar {
+    background: #fafafa !important;
+    border: 2px solid #dbdbdb !important;
+    padding: 0 !important;
+    background-image: none !important;
 }
 
-.story-upload .upload-avatar::before {
-    background: #f5f5f5;
+.story-upload .upload-avatar::before,
+.story-avatar.upload-avatar::before {
+    background: #fafafa !important;
     border-radius: 50%;
+    width: 60px !important;
+    height: 60px !important;
 }
 
-.story-upload .upload-avatar::after {
-    display: none;
+.story-upload .upload-avatar::after,
+.story-avatar.upload-avatar::after {
+    display: none !important;
 }
 
-.story-upload.empty-avatar {
-    background: #f5f5f5;
-    border: 2px dashed #ccc;
+.story-upload.empty-avatar,
+.story-item.story-upload .story-avatar {
+    background: #fafafa !important;
+    border: 2px solid #dbdbdb !important;
+    background-image: none !important;
 }
 
-.story-upload .upload-icon {
+.story-upload .upload-icon,
+.story-avatar .upload-icon {
     position: relative;
     z-index: 2;
-    color: #666;
-    font-size: 32px;
-    font-weight: 300;
+    color: #262626;
+    font-size: 24px;
+    font-weight: 400;
     line-height: 1;
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
-    width: 54px;
-    height: 54px;
+    width: 60px;
+    height: 60px;
+    background: transparent;
 }
 
 .story-item.your-story .story-username {
@@ -4827,14 +4840,15 @@ a:hover {
 }
 
 .story-username {
-    margin-top: 5px;
+    margin-top: 8px;
     font-size: 12px;
-    color: #333;
+    color: #262626;
     text-align: center;
-    max-width: 70px;
+    max-width: 80px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-weight: 400;
 }
 
 /* Story Viewer */

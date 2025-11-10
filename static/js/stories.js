@@ -9,8 +9,11 @@ let storyProgressInterval = null;
 // Load stories from API
 async function loadStories() {
     try {
+        console.log('Loading stories from API...');
         const response = await fetch('/api/stories');
         const data = await response.json();
+        
+        console.log('Stories API response:', data);
         
         if (data.success) {
             // Filter out expired stories on frontend as well (double check)
@@ -26,38 +29,82 @@ async function loadStories() {
                 };
             }).filter(userStory => userStory.stories.length > 0); // Remove users with no active stories
             
-            renderStoryBar();
+            console.log('Filtered stories data:', storiesData);
         } else {
             console.error('Error loading stories:', data.error);
+            storiesData = []; // Set to empty array on error
         }
     } catch (error) {
         console.error('Error fetching stories:', error);
+        storiesData = []; // Set to empty array on error
     }
+    
+    // Always render the bar, even if there are no stories
+    renderStoryBar();
 }
 
 // Render story bar at the top
 function renderStoryBar() {
     const storyBar = document.getElementById('stories-bar');
-    if (!storyBar) return;
+    if (!storyBar) {
+        console.warn('Stories bar element not found');
+        return;
+    }
     
-    // Get current user's email
-    const userEmail = sessionStorage.getItem('userEmail');
+    // Get current user's email from data attribute or sessionStorage
+    let userEmail = storyBar.getAttribute('data-user-email');
+    if (!userEmail || userEmail === '' || userEmail === 'None') {
+        userEmail = sessionStorage.getItem('userEmail');
+    }
+    let userName = storyBar.getAttribute('data-user-name');
+    if (!userName || userName === 'User' || userName === '' || userName === 'None') {
+        userName = sessionStorage.getItem('userName') || (userEmail ? userEmail.split('@')[0] : 'User');
+    }
     
+    console.log('🎨 Rendering story bar');
+    console.log('   - userEmail:', userEmail);
+    console.log('   - userName:', userName);
+    console.log('   - storiesData length:', storiesData.length);
+    console.log('   - storyBar element:', storyBar);
+    console.log('   - data-user-email:', storyBar.getAttribute('data-user-email'));
+    console.log('   - data-user-name:', storyBar.getAttribute('data-user-name'));
+    
+    // Always show upload button for logged-in users (check for valid email)
+    const shouldShowUpload = userEmail && 
+                             userEmail !== 'Guest' && 
+                             userEmail !== '' && 
+                             userEmail !== 'user@example.com' &&
+                             userEmail !== 'None' &&
+                             userEmail.includes('@'); // Must be a valid email format
+    
+    console.log('   - shouldShowUpload:', shouldShowUpload);
+    
+    // If no stories, always show upload button for logged-in users
     if (storiesData.length === 0) {
-        // If user is logged in, show "Your Story" upload button
-        if (userEmail) {
+        if (shouldShowUpload) {
             storyBar.innerHTML = `
                 <div class="stories-container">
-                    <div class="story-item story-upload story-empty" onclick="openStoryUpload()">
+                    <div class="story-item story-upload story-empty" onclick="if(typeof openStoryUpload === 'function') { openStoryUpload(); } else { console.error(\'openStoryUpload not defined\'); }" style="cursor: pointer;">
                         <div class="story-avatar upload-avatar empty-avatar">
-                            <span class="upload-icon">+</span>
+                            <span class="upload-icon" style="font-size: 24px; color: #262626; line-height: 60px; display: block;">+</span>
                         </div>
                         <div class="story-username">Your Story</div>
                     </div>
                 </div>
             `;
+            console.log('✅ Rendered upload button for logged-in user (no stories)');
+            console.log('   - Upload button HTML inserted');
+            storyBar.style.display = 'block';
+            storyBar.style.visibility = 'visible';
+            storyBar.style.opacity = '1';
+            storyBar.style.minHeight = '120px';
         } else {
-            storyBar.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No stories available</p>';
+            storyBar.innerHTML = '<p style="text-align: center; color: #666; padding: 20px; margin: 0;">No stories available. <a href="/login-page" style="color: #4CAF50; text-decoration: underline;">Login</a> to upload your story.</p>';
+            console.log('⚠️ No user email, showing login message');
+            console.log('   - userEmail was:', userEmail);
+            storyBar.style.display = 'block';
+            storyBar.style.visibility = 'visible';
+            storyBar.style.opacity = '1';
         }
         return;
     }
@@ -76,15 +123,16 @@ function renderStoryBar() {
     });
     
     // Add "Your Story" button first if user is logged in and doesn't have stories
-    if (userEmail && !userHasStories) {
+    if (userEmail && userEmail !== 'Guest' && userEmail !== '' && !userHasStories) {
         html += `
-            <div class="story-item story-upload story-empty" onclick="openStoryUpload()">
+            <div class="story-item story-upload story-empty" onclick="openStoryUpload()" style="cursor: pointer;">
                 <div class="story-avatar upload-avatar empty-avatar">
-                    <span class="upload-icon">+</span>
+                    <span class="upload-icon" style="font-size: 24px; color: #262626;">+</span>
                 </div>
                 <div class="story-username">Your Story</div>
             </div>
         `;
+        console.log('Added upload button for user without stories');
     }
     
     // Render all stories
@@ -107,6 +155,9 @@ function renderStoryBar() {
     
     html += '</div>';
     storyBar.innerHTML = html;
+    storyBar.style.display = 'block';
+    storyBar.style.visibility = 'visible';
+    console.log('Story bar rendered with', storiesData.length, 'users and upload button:', shouldShowUpload && !userHasStories);
 }
 
 function checkIfNewStories(userStory) {
@@ -356,11 +407,75 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Load stories on page load
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadStories);
-} else {
-    loadStories();
+function initStories() {
+    console.log('🚀 Initializing stories...');
+    console.log('Document ready state:', document.readyState);
+    const storyBar = document.getElementById('stories-bar');
+    if (storyBar) {
+        console.log('✅ Stories bar found:', storyBar);
+        let userEmail = storyBar.getAttribute('data-user-email');
+        let userName = storyBar.getAttribute('data-user-name');
+        
+        // Fallback to sessionStorage if data attributes are empty
+        if (!userEmail || userEmail === '') {
+            userEmail = sessionStorage.getItem('userEmail');
+        }
+        if (!userName || userName === 'User' || userName === '') {
+            userName = sessionStorage.getItem('userName') || userEmail?.split('@')[0] || 'User';
+        }
+        
+        console.log('📧 Stories bar data attributes:', {
+            email: userEmail,
+            name: userName,
+            dataEmail: storyBar.getAttribute('data-user-email'),
+            dataName: storyBar.getAttribute('data-user-name')
+        });
+        console.log('📦 SessionStorage userEmail:', sessionStorage.getItem('userEmail'));
+        
+        // Make sure bar is visible
+        storyBar.style.display = 'block';
+        storyBar.style.visibility = 'visible';
+        storyBar.style.opacity = '1';
+        storyBar.setAttribute('data-user-email', userEmail || '');
+        storyBar.setAttribute('data-user-name', userName || 'User');
+        
+        // Load stories immediately
+        loadStories();
+    } else {
+        console.warn('⚠️ Stories bar not found, retrying in 100ms...');
+        setTimeout(initStories, 100);
+    }
 }
+
+// Try multiple initialization methods
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initStories);
+} else {
+    // DOM already loaded, initialize immediately
+    initStories();
+}
+
+// Also try after a short delay to ensure everything is loaded
+setTimeout(() => {
+    const storyBar = document.getElementById('stories-bar');
+    if (storyBar) {
+        const userEmail = storyBar.getAttribute('data-user-email') || sessionStorage.getItem('userEmail');
+        const isEmpty = storyBar.innerHTML.trim() === '';
+        
+        console.log('🔍 Delayed check - Stories bar empty:', isEmpty, 'User email:', userEmail);
+        
+        if (isEmpty) {
+            console.log('🔄 Stories bar is empty, re-initializing...');
+            // Force visibility
+            storyBar.style.display = 'block';
+            storyBar.style.visibility = 'visible';
+            storyBar.style.opacity = '1';
+            initStories();
+        }
+    } else {
+        console.warn('⚠️ Stories bar still not found after delay');
+    }
+}, 1000);
 
 // Refresh stories every 5 minutes
 setInterval(loadStories, 5 * 60 * 1000);

@@ -524,14 +524,20 @@ def market_page():
         user_email = session.get('email', '')
         user_phone = session.get('phone', '')
         profile = session.get('profile', {})
-        user_name = profile.get('name', user_email.split('@')[0]) if user_email else 'Guest'
-        user_location = profile.get('location', '')
-        user_bio = profile.get('bio', '')
+        # Get user name from profile, or use email prefix, or 'Guest'
+        if user_email:
+            user_name = profile.get('name', '') if profile else ''
+            if not user_name or user_name == '':
+                user_name = user_email.split('@')[0]
+        else:
+            user_name = 'Guest'
+        user_location = profile.get('location', '') if profile else ''
+        user_bio = profile.get('bio', '') if profile else ''
         
         # Get market updates from database
         market_updates = get_market_updates()
         
-        logger.info(f"Serving market page for user: {user_name if user_email else 'Guest'}")
+        logger.info(f"Serving market page for user: {user_name} (email: {user_email})")
         return render_template('market.html', 
                              user_email=user_email,
                              user_phone=user_phone,
